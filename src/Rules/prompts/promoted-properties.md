@@ -40,26 +40,26 @@ When all three are true, the rule fires and the fix collapses the three pieces i
 
 ```php
 // before
-final class CreateCompanyUseCase
+final class CreateOrderUseCase
 {
-    private CompaniesRepositoryInterface $companiesRepository;
-    private NifValidator $taxIdentifierValidator;
+    private OrderRepositoryInterface $orderRepository;
+    private ProductValidator $productValidator;
 
     public function __construct(
-        CompaniesRepositoryInterface $companiesRepository,
-        NifValidator $taxIdentifierValidator,
+        OrderRepositoryInterface $orderRepository,
+        ProductValidator $productValidator,
     ) {
-        $this->companiesRepository = $companiesRepository;
-        $this->taxIdentifierValidator = $taxIdentifierValidator;
+        $this->orderRepository = $orderRepository;
+        $this->productValidator = $productValidator;
     }
 }
 
 // after
-final class CreateCompanyUseCase
+final class CreateOrderUseCase
 {
     public function __construct(
-        private readonly CompaniesRepositoryInterface $companiesRepository,
-        private readonly NifValidator $taxIdentifierValidator,
+        private readonly OrderRepositoryInterface $orderRepository,
+        private readonly ProductValidator $productValidator,
     ) {
     }
 }

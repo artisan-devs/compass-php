@@ -29,7 +29,7 @@ Plain method or function calls are **out of scope** — a sibling rule (`named-m
    - Follow `use` aliases at the top of the file.
    - If `parent::__construct(...)`, read the immediate parent class's `__construct` signature.
    - If the class is in `vendor/`, you may open it read-only to inspect the signature.
-4. For each positional argument, prefix it with the corresponding parameter name from the signature. Example: `'now'` becomes `datetime: 'now'`.
+4. For each positional argument, prefix it with the corresponding parameter name from the signature. Example: `'alice@example.com'` becomes `email: 'alice@example.com'`.
 5. Keep the original argument order to minimise diff churn (named arguments allow reordering, but reordering is not required).
 6. Do NOT modify:
    - `...$args` variadic spread arguments — leave them positional.
@@ -41,12 +41,13 @@ Plain method or function calls are **out of scope** — a sibling rule (`named-m
 
 ```php
 // before
-return new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+return new Order($id, $customer, new Money(1000, 'USD'));
 
 // after
-return new \DateTimeImmutable(
-    datetime: 'now',
-    timezone: new \DateTimeZone(timezone: 'UTC'),
+return new Order(
+    id: $id,
+    customer: $customer,
+    total: new Money(amount: 1000, currency: 'USD'),
 );
 ```
 

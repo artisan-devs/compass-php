@@ -36,19 +36,19 @@ Plain function calls (`count($x)`, `strlen($s)`, etc.) are **out of scope**.
 6. Do NOT modify:
    - `...$args` spread arguments.
    - Arguments already prefixed with `name:`.
-   - Mockery / `shouldReceive` / test-double DSL calls — these methods accept variadic strings positionally by design. Add the rule violation to the file's ignore list instead (`'tests/**' => ['named-method-arguments']` in `compass.php`) if it's a recurring pattern.
+   - Mockery / `shouldReceive` / test-double DSL calls — these methods accept variadic strings positionally by design. Add the rule violation to the file's ignore list instead (under `ignore:` in `compass.yaml`, as `'tests/**': ['named-method-arguments']`) if it's a recurring pattern.
    - Calls inside `vendor/`.
 
 ## Before / after
 
 ```php
 // before
-return $clock->modify('+1 day');
-$result = \DateTimeImmutable::createFromFormat('Y-m-d', '2026-01-01');
+$user = $userRepository->findByEmail('alice@example.com');
+$order = OrderFactory::fromCart($cart, $currentUser);
 
 // after
-return $clock->modify(modifier: '+1 day');
-$result = \DateTimeImmutable::createFromFormat(format: 'Y-m-d', datetime: '2026-01-01');
+$user = $userRepository->findByEmail(email: 'alice@example.com');
+$order = OrderFactory::fromCart(cart: $cart, customer: $currentUser);
 ```
 
 ## Stop conditions
