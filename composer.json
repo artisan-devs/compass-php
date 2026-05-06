@@ -1,0 +1,43 @@
+{
+  "$schema": "https://getcomposer.org/schema.json",
+  "name": "sidetours/compass",
+  "type": "library",
+  "description": "Architecture- and style-rule engine for PHP, with AI-ready fix prompts per rule.",
+  "keywords": ["architecture", "static-analysis", "linter", "phparkitect", "named-arguments"],
+  "license": "UNLICENSED",
+  "require": {
+    "php": "^8.4",
+    "nikic/php-parser": "^5.0",
+    "symfony/console": "^7.0"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^11.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Sidetours\\Compass\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Sidetours\\Compass\\Tests\\": "tests/"
+    },
+    "exclude-from-classmap": [
+      "tests/Fixtures/"
+    ]
+  },
+  "bin": [
+    "bin/compass"
+  ],
+  "scripts": {
+    "test": "phpunit",
+    "phpstan": "phpstan analyse src --level=5"
+  },
+  "config": {
+    "sort-packages": true,
+    "optimize-autoloader": true
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

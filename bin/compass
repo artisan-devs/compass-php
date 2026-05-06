@@ -1,0 +1,32 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Sidetours\Compass\Cli\Application;
+
+$autoloadCandidates = [
+    __DIR__.'/../vendor/autoload.php',          // running compass standalone
+    __DIR__.'/../../../autoload.php',           // installed as a dependency (vendor/sidetours/compass/bin/compass)
+];
+
+$loaded = false;
+foreach ($autoloadCandidates as $candidate) {
+    if (is_file($candidate)) {
+        require $candidate;
+        $loaded = true;
+        break;
+    }
+}
+if (! $loaded) {
+    fwrite(STDERR, "compass: could not locate vendor/autoload.php. Run `composer install` in the host project.\n");
+    exit(2);
+}
+
+$projectRoot = getcwd();
+if ($projectRoot === false) {
+    fwrite(STDERR, "compass: unable to determine current working directory.\n");
+    exit(2);
+}
+
+exit((new Application($projectRoot))->run());
