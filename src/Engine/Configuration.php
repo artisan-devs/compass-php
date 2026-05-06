@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Sidetours\Compass\Engine;
 
+use Sidetours\Compass\Rules\BuiltInRules;
 use Sidetours\Compass\Rules\Rule;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 final readonly class Configuration
 {
@@ -31,16 +34,22 @@ final readonly class Configuration
             throw new \RuntimeException(sprintf('Compass config file not found: %s', $configFile));
         }
 
-        $raw = require $configFile;
+        $contents = (string) file_get_contents($configFile);
+        try {
+            $raw = Yaml::parse($contents);
+        } catch (ParseException $e) {
+            throw new \RuntimeException(sprintf('Compass config %s is not valid YAML: %s', $configFile, $e->getMessage()), previous: $e);
+        }
         if (! is_array($raw)) {
-            throw new \RuntimeException(sprintf('Compass config must return an array, got %s', gettype($raw)));
+            throw new \RuntimeException(sprintf('Compass config must be a YAML mapping, got %s', get_debug_type($raw)));
         }
 
         $rules = [];
-        foreach ((array) ($raw['rules'] ?? []) as $class => $_options) {
-            if (! class_exists($class) || ! is_subclass_of($class, Rule::class)) {
-                throw new \RuntimeException(sprintf('Configured rule %s is not a valid %s', $class, Rule::class));
+        foreach ((array) ($raw['rules'] ?? []) as $entry) {
+            if (! is_string($entry) || $entry === '') {
+                throw new \RuntimeException('Each entry under "rules" must be a non-empty string (built-in name or PHP FQCN).');
             }
+            $class = BuiltInRules::resolve($entry);
             $rules[] = new $class();
         }
 

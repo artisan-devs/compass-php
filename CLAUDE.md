@@ -35,7 +35,7 @@ vendor/bin/compass check --no-baseline  # ignore baseline; report everything
 
 The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) → Rule::check → Violation → IgnoreList → Reporter`. Each piece lives under `src/`:
 
-- **`Engine/Configuration`** — loads `compass.php` (a PHP file returning an array). Resolves paths relative to `projectRoot`, instantiates registered `Rule` classes, and resolves the optional baseline path. Required keys: `paths`, `rules`. Optional: `exclude`, `ignore` (glob → rule list, `'*'` = all), `baseline`.
+- **`Engine/Configuration`** — loads `compass.yaml` (parsed via `symfony/yaml`). Resolves paths relative to `projectRoot`, instantiates registered `Rule` classes via `Rules\BuiltInRules::resolve()`, and resolves the optional baseline path. Required keys: `paths`, `rules` (each entry is either a built-in short name or a custom FQCN — the backslash is the discriminator). Optional: `exclude`, `ignore` (glob → rule list, `'*'` = all), `baseline`. JSON Schema lives at `compass.schema.json` at the package root.
 
 - **`Engine/Runner`** — the orchestrator. Builds a `class-string<Node> => list<Rule>` index up front (`indexRulesByNodeType`) so each AST node only dispatches to interested rules. For every file: read → parse → traverse with a single `RuleVisitor` → filter collected violations through `Context` (inline annotations) and `IgnoreList` (globs + baseline fingerprints).
 
@@ -43,11 +43,11 @@ The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) 
 
 - **`Engine/Context`** — per-file. At construction, parses the source for `@compass-ignore`, `@compass-ignore-next-line`, and `@compass-ignore-file` comments (with optional comma-separated rule lists). `isIgnored(rule, line)` is consulted by the Runner before keeping a violation.
 
-- **`Engine/IgnoreList`** — combines two suppression mechanisms: (1) glob patterns from `compass.php` `'ignore'` and (2) baseline fingerprints loaded from the configured baseline file. Fingerprint = `sha1(rule|file|line|message)` (`Violation::fingerprint`). Custom glob → regex implementation in `globToRegex` (supports `*`, `**`, `?`).
+- **`Engine/IgnoreList`** — combines two suppression mechanisms: (1) glob patterns from `compass.yaml` `ignore:` and (2) baseline fingerprints loaded from the configured baseline file. Fingerprint = `sha1(rule|file|line|message)` (`Violation::fingerprint`). Custom glob → regex implementation in `globToRegex` (supports `*`, `**`, `?`). Note: the baseline file itself is still PHP (auto-generated `var_export`), not YAML — it's an internal data file, never hand-edited.
 
 - **`Engine/FileScanner`** — recursive `.php` discovery. Excludes match against both relative and absolute paths via `fnmatch`. Plain-string excludes (no glob) are treated as directory prefixes.
 
-- **`Rules/Rule`** (interface) — `name()`, `shortDescription()`, `nodeTypes(): list<class-string<Node>>`, `check(Node, Context): iterable<Violation>`, `fixPrompt(): string`. Built-in rules: `NamedArgumentsRule`, `NamedMethodArgumentsRule`, `PromotedPropertiesRule`. Each rule loads its prompt from a sidecar `src/Rules/prompts/<rule-name>.md`.
+- **`Rules/Rule`** (interface) — `name()`, `shortDescription()`, `nodeTypes(): list<class-string<Node>>`, `check(Node, Context): iterable<Violation>`, `fixPrompt(): string`. Built-in rules: `NamedArgumentsRule`, `NamedMethodArgumentsRule`, `PromotedPropertiesRule`. Each rule loads its prompt from a sidecar `src/Rules/prompts/<rule-name>.md`. The short-name registry lives in `Rules/BuiltInRules::MAP` — guard test (`tests/Rules/BuiltInRulesTest.php`) asserts every Rule subclass under `src/Rules/` is registered with a key matching `name()`.
 
 - **`Reporters/`** — `TextReporter`, `JsonReporter`, `GithubActionsReporter`, `HtmlReporter` all implement `Reporter::report(Result, Output, projectRoot)`. `HtmlReporter` requires `--out=DIR` and emits a multi-page navigable report (index + one page per rule + one page per file with line-by-line source highlighting); its static assets (`styles.css`, `app.js`) live at `src/Reporters/html/` and are copied into `<out>/assets/` on each run.
 
@@ -58,7 +58,7 @@ The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) 
 1. Implement `Rules\Rule`. Return the PhpParser node FQCNs from `nodeTypes()` — the visitor only invokes you for those.
 2. In `check()`, yield `Violation`s. Use `$context->file`, the node's `getLine()`, and a stable, descriptive message (the message participates in the baseline fingerprint, so changing wording invalidates baselines).
 3. Write a prompt at `src/Rules/prompts/<rule-name>.md` with YAML frontmatter (`name`, `description`, `rule` minimum) plus a markdown body covering detection, refactor, edge cases, verification. Load it from `fixPrompt()`.
-4. Register the FQCN in the host project's `compass.php` under `'rules'`.
+4. If shipping the rule as a built-in: register it in `Rules\BuiltInRules::MAP` (key = `name()`, value = FQCN) and extend the `compass.schema.json` `rules.items.oneOf[0].enum` list. If host-project-only: register the FQCN in that project's `compass.yaml` under `rules:` (the backslash flags it as custom).
 
 ### Tests
 

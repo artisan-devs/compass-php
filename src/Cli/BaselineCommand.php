@@ -23,7 +23,7 @@ final class BaselineCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('config', 'c', InputOption::VALUE_REQUIRED, 'Path to configuration file', 'compass.php');
+        $this->addOption('config', 'c', InputOption::VALUE_REQUIRED, 'Path to configuration file', 'compass.yaml');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -32,7 +32,7 @@ final class BaselineCommand extends Command
         $config = Configuration::load($configFile, $this->projectRoot);
 
         if ($config->baseline === null) {
-            $output->writeln('<error>No "baseline" path configured in compass.php — set one before generating a baseline.</error>');
+            $output->writeln('<error>No "baseline" path configured in compass.yaml — set one before generating a baseline.</error>');
 
             return 2;
         }

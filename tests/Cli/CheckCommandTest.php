@@ -95,16 +95,13 @@ class Foo {
 $a = new \DateTimeImmutable('now');
 $b = new \DateTimeImmutable('later');
 PHP);
-        file_put_contents($dir.'/compass.php', <<<'PHP'
-<?php
-return [
-    'paths' => ['src'],
-    'rules' => [
-        \Sidetours\Compass\Rules\NamedArgumentsRule::class => [],
-        \Sidetours\Compass\Rules\PromotedPropertiesRule::class => [],
-    ],
-];
-PHP);
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths:
+  - src
+rules:
+  - named-arguments
+  - promoted-properties
+YAML);
         register_shutdown_function(static function () use ($dir): void {
             self::rrmdir($dir);
         });
@@ -139,13 +136,12 @@ $a = new \DateTimeImmutable('now');
 $b = new \DateTimeImmutable('later');
 PHP);
         file_put_contents($dir.'/src/B.php', "<?php\n\$c = new \\DateTimeImmutable('today');\n");
-        file_put_contents($dir.'/compass.php', <<<'PHP'
-<?php
-return [
-    'paths' => ['src'],
-    'rules' => [\Sidetours\Compass\Rules\NamedArgumentsRule::class => []],
-];
-PHP);
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths:
+  - src
+rules:
+  - named-arguments
+YAML);
         register_shutdown_function(static function () use ($dir): void {
             self::rrmdir($dir);
         });
@@ -266,6 +262,72 @@ PHP);
         self::assertStringContainsString('--out', $tester->getDisplay());
     }
 
+    public function test_filter_option_restricts_scan_to_matching_files(): void
+    {
+        $dir = sys_get_temp_dir().'/compass-cli-'.bin2hex(random_bytes(6));
+        mkdir($dir.'/src', 0775, true);
+        file_put_contents($dir.'/src/Keep.php', "<?php\n\$a = new \\DateTimeImmutable('now');\n");
+        file_put_contents($dir.'/src/Skip.php', "<?php\n\$b = new \\DateTimeImmutable('later');\n");
+        file_put_contents($dir.'/compass.yaml', "paths:\n  - src\nrules:\n  - named-arguments\n");
+        register_shutdown_function(static function () use ($dir): void {
+            self::rrmdir($dir);
+        });
+
+        $app = new Application($dir);
+        $app->setAutoExit(false);
+        $tester = new ApplicationTester($app);
+        $tester->run(['command' => 'check', '--filter' => ['src/Keep.php']]);
+
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('src/Keep.php', $display);
+        self::assertStringNotContainsString('src/Skip.php', $display);
+        self::assertStringContainsString('1 violation(s) across 1 file(s)', $display);
+    }
+
+    public function test_filter_option_supports_globs(): void
+    {
+        $dir = sys_get_temp_dir().'/compass-cli-'.bin2hex(random_bytes(6));
+        mkdir($dir.'/src/Controllers', 0775, true);
+        mkdir($dir.'/src/Services', 0775, true);
+        file_put_contents($dir.'/src/Controllers/A.php', "<?php\n\$a = new \\DateTimeImmutable('now');\n");
+        file_put_contents($dir.'/src/Controllers/B.php', "<?php\n\$b = new \\DateTimeImmutable('now');\n");
+        file_put_contents($dir.'/src/Services/C.php', "<?php\n\$c = new \\DateTimeImmutable('now');\n");
+        file_put_contents($dir.'/compass.yaml', "paths:\n  - src\nrules:\n  - named-arguments\n");
+        register_shutdown_function(static function () use ($dir): void {
+            self::rrmdir($dir);
+        });
+
+        $app = new Application($dir);
+        $app->setAutoExit(false);
+        $tester = new ApplicationTester($app);
+        $tester->run(['command' => 'check', '--filter' => ['src/Controllers/**']]);
+
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('src/Controllers/A.php', $display);
+        self::assertStringContainsString('src/Controllers/B.php', $display);
+        self::assertStringNotContainsString('src/Services/C.php', $display);
+        self::assertStringContainsString('2 violation(s) across 2 file(s)', $display);
+    }
+
+    public function test_filter_with_no_matches_reports_zero_files(): void
+    {
+        $dir = sys_get_temp_dir().'/compass-cli-'.bin2hex(random_bytes(6));
+        mkdir($dir.'/src', 0775, true);
+        file_put_contents($dir.'/src/A.php', "<?php\n\$a = new \\DateTimeImmutable('now');\n");
+        file_put_contents($dir.'/compass.yaml', "paths:\n  - src\nrules:\n  - named-arguments\n");
+        register_shutdown_function(static function () use ($dir): void {
+            self::rrmdir($dir);
+        });
+
+        $app = new Application($dir);
+        $app->setAutoExit(false);
+        $tester = new ApplicationTester($app);
+        $exit = $tester->run(['command' => 'check', '--filter' => ['src/DoesNotExist.php']]);
+
+        self::assertSame(0, $exit);
+        self::assertStringContainsString('0 violations across 0 file(s)', $tester->getDisplay());
+    }
+
     public function test_invalid_group_by_returns_error(): void
     {
         $project = self::makeProject('<?php $a = 1;');
@@ -285,13 +347,12 @@ PHP);
         $dir = sys_get_temp_dir().'/compass-cli-'.bin2hex(random_bytes(6));
         mkdir($dir.'/src', 0775, true);
         file_put_contents($dir.'/src/Sample.php', $sourceFile);
-        file_put_contents($dir.'/compass.php', <<<'PHP'
-<?php
-return [
-    'paths' => ['src'],
-    'rules' => [\Sidetours\Compass\Rules\NamedArgumentsRule::class => []],
-];
-PHP);
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths:
+  - src
+rules:
+  - named-arguments
+YAML);
 
         register_shutdown_function(static function () use ($dir): void {
             self::rrmdir($dir);

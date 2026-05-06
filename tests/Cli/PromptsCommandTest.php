@@ -84,17 +84,14 @@ final class PromptsCommandTest extends TestCase
     {
         $dir = sys_get_temp_dir().'/compass-prompts-proj-'.bin2hex(random_bytes(6));
         mkdir($dir.'/src', 0775, true);
-        file_put_contents($dir.'/compass.php', <<<'PHP'
-<?php
-return [
-    'paths' => ['src'],
-    'rules' => [
-        \Sidetours\Compass\Rules\NamedArgumentsRule::class => [],
-        \Sidetours\Compass\Rules\NamedMethodArgumentsRule::class => [],
-        \Sidetours\Compass\Rules\PromotedPropertiesRule::class => [],
-    ],
-];
-PHP);
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths:
+  - src
+rules:
+  - named-arguments
+  - named-method-arguments
+  - promoted-properties
+YAML);
 
         register_shutdown_function(static function () use ($dir): void {
             if (! is_dir($dir)) {
@@ -107,7 +104,7 @@ PHP);
                 @unlink($dir.'/src/'.$entry);
             }
             @rmdir($dir.'/src');
-            @unlink($dir.'/compass.php');
+            @unlink($dir.'/compass.yaml');
             @rmdir($dir);
         });
 

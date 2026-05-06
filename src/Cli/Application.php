@@ -15,6 +15,7 @@ final class Application extends SymfonyApplication
         $this->addCommand(new CheckCommand($projectRoot));
         $this->addCommand(new BaselineCommand($projectRoot));
         $this->addCommand(new PromptsCommand($projectRoot));
+        $this->addCommand(new FixPromptCommand($projectRoot));
 
         $this->setDefaultCommand('check');
     }

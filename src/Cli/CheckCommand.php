@@ -29,10 +29,11 @@ final class CheckCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('config', 'c', InputOption::VALUE_REQUIRED, 'Path to configuration file', 'compass.php')
+            ->addOption('config', 'c', InputOption::VALUE_REQUIRED, 'Path to configuration file', 'compass.yaml')
             ->addOption('reporter', 'r', InputOption::VALUE_REQUIRED, 'Reporter: text|json|github|html', 'text')
             ->addOption('group-by', 'g', InputOption::VALUE_REQUIRED, 'Group violations: file|rule (text+json) or none (json only)', 'file')
             ->addOption('out', 'o', InputOption::VALUE_REQUIRED, 'Output directory (required by html reporter)')
+            ->addOption('filter', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Limit the scan to files matching this path or glob (relative to project root or absolute). Repeat to match several. Supports *, **, ?')
             ->addOption('no-baseline', null, InputOption::VALUE_NONE, 'Ignore the configured baseline and report every violation');
     }
 
@@ -43,7 +44,9 @@ final class CheckCommand extends Command
         $ignoreList = $input->getOption('no-baseline')
             ? new IgnoreList($config->ignore, [], $config->projectRoot)
             : IgnoreList::fromConfiguration($config);
-        $runner = new Runner($config, $ignoreList);
+        /** @var list<string> $filters */
+        $filters = (array) $input->getOption('filter');
+        $runner = new Runner($config, $ignoreList, filters: $filters);
 
         $result = $runner->run();
         $reporter = $this->reporter(

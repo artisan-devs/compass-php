@@ -12,10 +12,14 @@ use Sidetours\Compass\Rules\Rule;
 
 final class Runner
 {
+    /**
+     * @param list<string> $filters Optional path filters; when non-empty, only files matching are scanned.
+     */
     public function __construct(
         private readonly Configuration $config,
         private readonly IgnoreList $ignoreList,
         private readonly FileScanner $scanner = new FileScanner(),
+        private readonly array $filters = [],
     ) {
     }
 
@@ -29,7 +33,7 @@ final class Runner
         $errors = [];
         $files = 0;
 
-        foreach ($this->scanner->scan($this->config->paths, $this->config->exclude, $this->config->projectRoot) as $file) {
+        foreach ($this->scanner->scan($this->config->paths, $this->config->exclude, $this->config->projectRoot, $this->filters) as $file) {
             $files++;
             $source = @file_get_contents($file);
             if ($source === false) {

@@ -23,7 +23,7 @@ final class PromptsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('config', 'c', InputOption::VALUE_REQUIRED, 'Path to configuration file', 'compass.php')
+            ->addOption('config', 'c', InputOption::VALUE_REQUIRED, 'Path to configuration file', 'compass.yaml')
             ->addOption('rule', null, InputOption::VALUE_REQUIRED, 'Limit output to this rule by name')
             ->addOption('out', null, InputOption::VALUE_REQUIRED, 'Write each prompt as <out>/<rule>.md instead of printing to stdout');
     }
@@ -82,7 +82,7 @@ final class PromptsCommand extends Command
 
     private function resolveConfigPath(string $path): string
     {
-        return $this->resolvePath($path, 'compass.php');
+        return $this->resolvePath($path, 'compass.yaml');
     }
 
     private function resolveOutPath(string $path): string
