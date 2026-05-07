@@ -33,7 +33,12 @@
   ],
   "scripts": {
     "test": "phpunit",
-    "phpstan": "phpstan analyse src --level=5"
+    "phpstan": "phpstan analyse src --level=5",
+    "compass": "@php bin/compass check",
+    "compass:html": "@php bin/compass check --reporter=html --out=build/compass",
+    "compass:baseline": "@php bin/compass baseline",
+    "compass:prompts": "@php bin/compass prompts",
+    "compass:fix-prompt": "@php bin/compass fix-prompt"
   },
   "config": {
     "sort-packages": true,
