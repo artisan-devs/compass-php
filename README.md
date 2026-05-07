@@ -106,13 +106,45 @@ Omit the rule list to silence every Compass rule for that location.
 
 ## Built-in rules
 
-| Rule | Catches |
-|---|---|
-| `named-arguments` | Positional args at constructor invocations (`new Foo(...)`, `parent::__construct(...)`). |
-| `named-method-arguments` | Positional args at method/static calls (`$x->y()`, `Foo::bar()`). Plain function calls are out of scope. |
-| `promoted-properties` | Class properties that mirror an unpromoted constructor parameter assigned via `$this->X = $X;`. |
+Rules are organised into four categories (`Sidetours\Compass\Rules\BuiltInRules::CATEGORIES`). The same grouping is encoded in `compass.schema.json` so `yaml-language-server` autocomplete shows rule names under their category heading.
 
-Each rule has a sidecar prompt file under `src/Rules/prompts/<rule>.md`.
+### Type Safety — explicit native types end-to-end
+
+| Rule | Catches | PHP |
+|---|---|---|
+| `strict-types-declaration` | Files that don't begin with `declare(strict_types=1);` immediately after `<?php`. | 7.0+ |
+| `typed-declarations` | Properties, parameters, or return types lacking explicit native types (PHPDoc not a substitute). Skips magic `__construct`/`__destruct`. | 7.4+ |
+| `typed-class-constants` | Class/interface/enum constants without an explicit type. | 8.3+ |
+| `never-return-type` | Functions/methods whose every code path throws or exits, but whose return type isn't `: never`. | 8.1+ |
+
+### Modern PHP — leverage PHP 8+ syntax
+
+| Rule | Catches | PHP |
+|---|---|---|
+| `named-arguments` | Positional args at constructor invocations (`new Foo(...)`, `parent::__construct(...)`). | 8.0+ |
+| `named-method-arguments` | Positional args at method/static calls (`$x->y()`, `Foo::bar()`). Plain function calls are out of scope. | 8.0+ |
+| `promoted-properties` | Class properties that mirror an unpromoted constructor parameter assigned via `$this->X = $X;`. | 8.0+ |
+| `use-str-contains` | `strpos($h, $n) !== false` comparisons that should be `str_contains` / `str_starts_with`. | 8.0+ |
+| `first-class-callable` | Array-callable (`[$obj, 'method']`) or string-callable arguments to known callable-consuming functions; suggest `$obj->method(...)`. | 8.1+ |
+| `use-array-spread` | `array_merge(...)` calls with ≥2 args; suggest `[...$a, ...$b]`. | 7.4+ |
+| `use-match-expression` | `switch` statements with no fall-through where every case terminates; suggest `match`. | 8.0+ |
+| `readonly-classes` | Classes whose every property is `readonly`; suggest `readonly class`. | 8.2+ |
+
+### Code Hygiene — readability and simplicity
+
+| Rule | Catches | PHP |
+|---|---|---|
+| `no-else-after-return` | `else` / `elseif` branches that follow an `if` body terminating with `return`/`throw`/`exit`/`continue`/`break`. | any |
+| `final-classes` | Concrete (non-abstract) classes without the `final` modifier. | any |
+| `numeric-separator` | Decimal numeric literals ≥ 10 000 written without underscore separators (`1500000` → `1_500_000`). | 7.4+ |
+
+### Architecture — design boundaries between layers
+
+| Rule | Catches | PHP |
+|---|---|---|
+| `no-service-location` | `app()`, `resolve()`, `App::make()`, `Container::make()` calls inside files whose path contains `/Domain/` or `/Application/`. | any |
+
+Each rule has a sidecar prompt file under `src/Rules/prompts/<rule>.md`. Custom rules registered in your project's `compass.yaml` are not subject to this taxonomy — categorise them however you like in your own docs.
 
 ## Adding a rule
 

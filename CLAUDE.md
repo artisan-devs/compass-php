@@ -47,7 +47,15 @@ The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) 
 
 - **`Engine/FileScanner`** — recursive `.php` discovery. Excludes match against both relative and absolute paths via `fnmatch`. Plain-string excludes (no glob) are treated as directory prefixes.
 
-- **`Rules/Rule`** (interface) — `name()`, `shortDescription()`, `nodeTypes(): list<class-string<Node>>`, `check(Node, Context): iterable<Violation>`, `fixPrompt(): string`. Built-in rules: `NamedArgumentsRule`, `NamedMethodArgumentsRule`, `PromotedPropertiesRule`. Each rule loads its prompt from a sidecar `src/Rules/prompts/<rule-name>.md`. The short-name registry lives in `Rules/BuiltInRules::MAP` — guard test (`tests/Rules/BuiltInRulesTest.php`) asserts every Rule subclass under `src/Rules/` is registered with a key matching `name()`.
+- **`Rules/Rule`** (interface) — `name()`, `shortDescription()`, `nodeTypes(): list<class-string<Node>>`, `check(Node, Context): iterable<Violation>`, `fixPrompt(): string`. Built-in rules are grouped by intent in `Rules/BuiltInRules::CATEGORIES`:
+  - **type-safety** — `strict-types-declaration`, `typed-declarations`, `typed-class-constants` (8.3+), `never-return-type` (8.1+)
+  - **modern-php** — `named-arguments`, `named-method-arguments`, `promoted-properties`, `use-str-contains` (8.0+), `first-class-callable` (8.1+), `use-array-spread` (7.4+), `use-match-expression` (8.0+), `readonly-classes` (8.2+)
+  - **code-hygiene** — `no-else-after-return`, `final-classes`, `numeric-separator` (7.4+)
+  - **architecture** — `no-service-location`
+
+  Each rule loads its prompt from a sidecar `src/Rules/prompts/<rule-name>.md`. The short-name registry lives in `Rules/BuiltInRules::MAP`; categories live in `Rules/BuiltInRules::CATEGORIES` and are mirrored in `compass.schema.json` (one `oneOf` branch per category, so `yaml-language-server` autocomplete shows the same grouping in editors). Guard test (`tests/Rules/BuiltInRulesTest.php`) asserts every Rule subclass under `src/Rules/` is in `MAP` AND in exactly one `CATEGORIES` bucket with a key matching `name()`.
+
+- **`Rules/FileRule`** (companion interface) — for whole-file checks that don't fit the per-node visitor model (e.g. detecting a *missing* top-level `declare(strict_types=1);`). The Runner calls `checkFile(Context)` once per file alongside AST traversal. Implementing classes still implement `Rule` (so they appear in reports under their `name()` and ship a `fixPrompt()`); they typically return `[]` from `nodeTypes()`. Currently used by `StrictTypesDeclarationRule`.
 
 - **`Reporters/`** — `TextReporter`, `JsonReporter`, `GithubActionsReporter`, `HtmlReporter` all implement `Reporter::report(Result, Output, projectRoot)`. `HtmlReporter` requires `--out=DIR` and emits a multi-page navigable report (index + one page per rule + one page per file with line-by-line source highlighting); its static assets (`styles.css`, `app.js`) live at `src/Reporters/html/` and are copied into `<out>/assets/` on each run.
 
@@ -58,7 +66,7 @@ The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) 
 1. Implement `Rules\Rule`. Return the PhpParser node FQCNs from `nodeTypes()` — the visitor only invokes you for those.
 2. In `check()`, yield `Violation`s. Use `$context->file`, the node's `getLine()`, and a stable, descriptive message (the message participates in the baseline fingerprint, so changing wording invalidates baselines).
 3. Write a prompt at `src/Rules/prompts/<rule-name>.md` with YAML frontmatter (`name`, `description`, `rule` minimum) plus a markdown body covering detection, refactor, edge cases, verification. Load it from `fixPrompt()`.
-4. If shipping the rule as a built-in: register it in `Rules\BuiltInRules::MAP` (key = `name()`, value = FQCN) and extend the `compass.schema.json` `rules.items.oneOf[0].enum` list. If host-project-only: register the FQCN in that project's `compass.yaml` under `rules:` (the backslash flags it as custom).
+4. If shipping the rule as a built-in: register it in `Rules\BuiltInRules::MAP` (key = `name()`, value = FQCN), add it to one of the `CATEGORIES` buckets, and extend the matching per-category `enum` array under `compass.schema.json` `rules.items.oneOf`. If host-project-only: register the FQCN in that project's `compass.yaml` under `rules:` (the backslash flags it as custom; categorisation is up to the host project).
 
 ### Tests
 

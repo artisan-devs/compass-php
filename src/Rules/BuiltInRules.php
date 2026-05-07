@@ -19,6 +19,56 @@ final class BuiltInRules
         'named-arguments' => NamedArgumentsRule::class,
         'named-method-arguments' => NamedMethodArgumentsRule::class,
         'promoted-properties' => PromotedPropertiesRule::class,
+        'strict-types-declaration' => StrictTypesDeclarationRule::class,
+        'final-classes' => FinalClassesRule::class,
+        'no-else-after-return' => NoElseAfterReturnRule::class,
+        'typed-declarations' => TypedDeclarationsRule::class,
+        'no-service-location' => NoServiceLocationRule::class,
+        'use-str-contains' => UseStrContainsRule::class,
+        'first-class-callable' => FirstClassCallableRule::class,
+        'use-array-spread' => UseArraySpreadRule::class,
+        'typed-class-constants' => TypedClassConstantsRule::class,
+        'use-match-expression' => UseMatchExpressionRule::class,
+        'never-return-type' => NeverReturnTypeRule::class,
+        'readonly-classes' => ReadonlyClassesRule::class,
+        'numeric-separator' => NumericSeparatorRule::class,
+    ];
+
+    /**
+     * Built-in rules grouped by intent. Every rule in {@see self::MAP} appears in exactly one category.
+     *
+     * - **type-safety**: Enforce explicit native PHP types end-to-end.
+     * - **modern-php**: Leverage PHP 8+ syntax for clarity at call and declaration sites.
+     * - **code-hygiene**: Small readability and simplicity improvements.
+     * - **architecture**: Enforce design boundaries between layers.
+     *
+     * @var array<string, list<string>>
+     */
+    public const CATEGORIES = [
+        'type-safety' => [
+            'strict-types-declaration',
+            'typed-declarations',
+            'typed-class-constants',
+            'never-return-type',
+        ],
+        'modern-php' => [
+            'named-arguments',
+            'named-method-arguments',
+            'promoted-properties',
+            'use-str-contains',
+            'first-class-callable',
+            'use-array-spread',
+            'use-match-expression',
+            'readonly-classes',
+        ],
+        'code-hygiene' => [
+            'no-else-after-return',
+            'final-classes',
+            'numeric-separator',
+        ],
+        'architecture' => [
+            'no-service-location',
+        ],
     ];
 
     /**

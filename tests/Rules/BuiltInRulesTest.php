@@ -32,6 +32,74 @@ final class BuiltInRulesTest extends TestCase
         self::assertSame($found, $registered, 'Every built-in Rule subclass under src/Rules must be registered in BuiltInRules::MAP.');
     }
 
+    public function test_every_registered_rule_appears_in_exactly_one_category(): void
+    {
+        $registered = array_keys(BuiltInRules::MAP);
+        sort($registered);
+
+        $categorised = [];
+        foreach (BuiltInRules::CATEGORIES as $category => $names) {
+            self::assertIsString($category);
+            self::assertNotEmpty($names, sprintf('Category "%s" has no rules.', $category));
+            foreach ($names as $name) {
+                self::assertArrayHasKey(
+                    $name,
+                    BuiltInRules::MAP,
+                    sprintf('CATEGORIES references "%s" but it is not in MAP.', $name),
+                );
+                $categorised[] = $name;
+            }
+        }
+
+        $duplicates = array_keys(array_filter(array_count_values($categorised), static fn (int $n): bool => $n > 1));
+        self::assertSame([], $duplicates, 'Each rule must appear in exactly one category. Duplicates: '.implode(', ', $duplicates));
+
+        sort($categorised);
+        self::assertSame($registered, $categorised, 'Every rule in MAP must be assigned to a CATEGORIES bucket.');
+    }
+
+    public function test_categories_match_schema_oneof_enums(): void
+    {
+        $schemaPath = __DIR__.'/../../compass.schema.json';
+        $schema = json_decode((string) file_get_contents($schemaPath), true);
+        self::assertIsArray($schema);
+
+        /** @var list<array<string, mixed>> $oneOf */
+        $oneOf = $schema['properties']['rules']['items']['oneOf'] ?? [];
+
+        $schemaByTitle = [];
+        foreach ($oneOf as $branch) {
+            if (! isset($branch['enum']) || ! is_array($branch['enum'])) {
+                continue;
+            }
+            $title = $branch['title'] ?? '';
+            $schemaByTitle[$title] = $branch['enum'];
+        }
+
+        $expectedTitles = [
+            'type-safety' => 'Type Safety',
+            'modern-php' => 'Modern PHP',
+            'code-hygiene' => 'Code Hygiene',
+            'architecture' => 'Architecture',
+        ];
+
+        foreach (BuiltInRules::CATEGORIES as $category => $rules) {
+            $title = $expectedTitles[$category] ?? null;
+            self::assertNotNull($title, sprintf('No display title mapped for category "%s".', $category));
+            self::assertArrayHasKey($title, $schemaByTitle, sprintf('compass.schema.json is missing a oneOf branch titled "%s".', $title));
+
+            $expected = $rules;
+            $actual = $schemaByTitle[$title];
+            sort($expected);
+            sort($actual);
+            self::assertSame(
+                $expected,
+                $actual,
+                sprintf('Schema enum for category "%s" diverges from BuiltInRules::CATEGORIES.', $title),
+            );
+        }
+    }
+
     public function test_each_registered_short_name_matches_the_classs_name_method(): void
     {
         foreach (BuiltInRules::MAP as $shortName => $fqcn) {

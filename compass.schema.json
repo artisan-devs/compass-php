@@ -37,12 +37,46 @@
         "oneOf": [
           {
             "type": "string",
-            "title": "Built-in rule",
-            "description": "Short name of a rule shipped with Compass.",
+            "title": "Type Safety",
+            "description": "Built-in rules that enforce explicit native PHP types end-to-end.",
+            "enum": [
+              "strict-types-declaration",
+              "typed-declarations",
+              "typed-class-constants",
+              "never-return-type"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "Modern PHP",
+            "description": "Built-in rules that push call and declaration sites to use PHP 8+ syntax (named arguments, promoted properties, str_contains, match, first-class callables, array spread, readonly classes).",
             "enum": [
               "named-arguments",
               "named-method-arguments",
-              "promoted-properties"
+              "promoted-properties",
+              "use-str-contains",
+              "first-class-callable",
+              "use-array-spread",
+              "use-match-expression",
+              "readonly-classes"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "Code Hygiene",
+            "description": "Built-in rules that improve readability and simplicity (early returns, final classes, numeric separators).",
+            "enum": [
+              "no-else-after-return",
+              "final-classes",
+              "numeric-separator"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "Architecture",
+            "description": "Built-in rules that enforce design boundaries between layers (e.g. no service-location in Domain/Application).",
+            "enum": [
+              "no-service-location"
             ]
           },
           {

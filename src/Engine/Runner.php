@@ -8,6 +8,7 @@ use PhpParser\Error as ParserError;
 use PhpParser\Node;
 use PhpParser\NodeTraverser;
 use PhpParser\ParserFactory;
+use Sidetours\Compass\Rules\FileRule;
 use Sidetours\Compass\Rules\Rule;
 
 final class Runner
@@ -57,6 +58,15 @@ final class Runner
             $traverser = new NodeTraverser();
             $traverser->addVisitor($collector);
             $traverser->traverse($ast);
+
+            foreach ($this->config->rules as $rule) {
+                if (! $rule instanceof FileRule) {
+                    continue;
+                }
+                foreach ($rule->checkFile($context) as $violation) {
+                    $collector->collected[] = $violation;
+                }
+            }
 
             foreach ($collector->collected as $violation) {
                 if ($context->isIgnored($violation->rule, $violation->line) || $this->ignoreList->isIgnored($violation)) {
