@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=./compass.schema.json
+
+paths:
+  - src
+
+exclude:
+  - tests/Fixtures
+
+phpVersion: "8.4"
+
+rules:
+  - final-classes
+  - no-else-after-return
