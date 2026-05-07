@@ -9,5 +9,4 @@ exclude:
 phpVersion: "8.4"
 
 rules:
-  - final-classes
-  - no-else-after-return
+  # - numeric-literal-separator
