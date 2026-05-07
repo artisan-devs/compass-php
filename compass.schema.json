@@ -5,7 +5,15 @@
   "description": "Schema for compass.yaml at the root of a host project. Loaded by Sidetours\\Compass\\Engine\\Configuration::load() at the start of every `compass check`, `compass baseline`, and `compass prompts` invocation.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["paths", "rules"],
+  "required": ["paths"],
+  "anyOf": [
+    {
+      "required": ["rules"]
+    },
+    {
+      "required": ["phpVersion"]
+    }
+  ],
   "properties": {
     "paths": {
       "type": "array",
@@ -28,13 +36,20 @@
       },
       "examples": [["src/Generated", "tests/Fixtures/**"]]
     },
+    "phpVersion": {
+      "type": "string",
+      "title": "PHP version target",
+      "description": "PHP version your project targets (dotted form, e.g. \"8.1\" or \"8.1.2\"). When set, every built-in rule whose feature is available at or before this version is auto-included via Sidetours\\Compass\\Rules\\BuiltInRules::applicableTo(). Composes with the explicit `rules` list (deduplicated). Version-agnostic rules (final-classes, no-else-after-return, no-service-location) are NEVER auto-included by phpVersion — list them under `rules` if you want them. At least one of `rules` or `phpVersion` must be present.",
+      "pattern": "^\\d+(\\.\\d+){1,2}$",
+      "examples": ["7.4", "8.0", "8.1", "8.2", "8.3"]
+    },
     "rules": {
       "type": "array",
       "title": "Activated rules",
-      "description": "List of rule identifiers Compass should run. Each entry is either a built-in short name (matches Rule::name() of a class shipped with the package) or a fully-qualified PHP class name of a custom rule that implements Sidetours\\Compass\\Rules\\Rule. Custom-rule entries MUST contain a backslash so the loader can disambiguate them from built-in names.",
+      "description": "List of rule identifiers Compass should run. Each entry is either a built-in short name (matches Rule::name() of a class shipped with the package) or a fully-qualified PHP class name of a custom rule that implements Sidetours\\Compass\\Rules\\Rule. Custom-rule entries MUST contain a backslash so the loader can disambiguate them from built-in names. Built-in rules are presented under two orthogonal groupings: by intent (Type Safety, Modern PHP, Code Hygiene, Architecture) and by the PHP version that introduced the language feature each rule enforces (PHP 7.0 through PHP 8.3). A rule typically appears in one branch from each grouping. Optional when `phpVersion` is set; the two settings compose.",
       "minItems": 1,
       "items": {
-        "oneOf": [
+        "anyOf": [
           {
             "type": "string",
             "title": "Type Safety",
@@ -77,6 +92,61 @@
             "description": "Built-in rules that enforce design boundaries between layers (e.g. no service-location in Domain/Application).",
             "enum": [
               "no-service-location"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "PHP 7.0",
+            "description": "Built-in rules that enforce features introduced in PHP 7.0.",
+            "enum": [
+              "strict-types-declaration"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "PHP 7.4",
+            "description": "Built-in rules that enforce features introduced in PHP 7.4 (typed properties, array spread, numeric literal separator).",
+            "enum": [
+              "typed-declarations",
+              "use-array-spread",
+              "numeric-separator"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "PHP 8.0",
+            "description": "Built-in rules that enforce features introduced in PHP 8.0 (named arguments, constructor property promotion, str_contains, match).",
+            "enum": [
+              "named-arguments",
+              "named-method-arguments",
+              "promoted-properties",
+              "use-str-contains",
+              "use-match-expression"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "PHP 8.1",
+            "description": "Built-in rules that enforce features introduced in PHP 8.1 (first-class callable syntax, never return type).",
+            "enum": [
+              "first-class-callable",
+              "never-return-type"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "PHP 8.2",
+            "description": "Built-in rules that enforce features introduced in PHP 8.2 (readonly classes).",
+            "enum": [
+              "readonly-classes"
+            ]
+          },
+          {
+            "type": "string",
+            "title": "PHP 8.3",
+            "description": "Built-in rules that enforce features introduced in PHP 8.3 (typed class constants).",
+            "enum": [
+              "typed-class-constants"
             ]
           },
           {

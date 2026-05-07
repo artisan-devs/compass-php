@@ -58,23 +58,9 @@ final class BuiltInRulesTest extends TestCase
         self::assertSame($registered, $categorised, 'Every rule in MAP must be assigned to a CATEGORIES bucket.');
     }
 
-    public function test_categories_match_schema_oneof_enums(): void
+    public function test_categories_match_schema_anyof_enums(): void
     {
-        $schemaPath = __DIR__.'/../../compass.schema.json';
-        $schema = json_decode((string) file_get_contents($schemaPath), true);
-        self::assertIsArray($schema);
-
-        /** @var list<array<string, mixed>> $oneOf */
-        $oneOf = $schema['properties']['rules']['items']['oneOf'] ?? [];
-
-        $schemaByTitle = [];
-        foreach ($oneOf as $branch) {
-            if (! isset($branch['enum']) || ! is_array($branch['enum'])) {
-                continue;
-            }
-            $title = $branch['title'] ?? '';
-            $schemaByTitle[$title] = $branch['enum'];
-        }
+        $schemaByTitle = $this->loadSchemaEnumBranches();
 
         $expectedTitles = [
             'type-safety' => 'Type Safety',
@@ -86,7 +72,7 @@ final class BuiltInRulesTest extends TestCase
         foreach (BuiltInRules::CATEGORIES as $category => $rules) {
             $title = $expectedTitles[$category] ?? null;
             self::assertNotNull($title, sprintf('No display title mapped for category "%s".', $category));
-            self::assertArrayHasKey($title, $schemaByTitle, sprintf('compass.schema.json is missing a oneOf branch titled "%s".', $title));
+            self::assertArrayHasKey($title, $schemaByTitle, sprintf('compass.schema.json is missing an anyOf branch titled "%s".', $title));
 
             $expected = $rules;
             $actual = $schemaByTitle[$title];
@@ -98,6 +84,127 @@ final class BuiltInRulesTest extends TestCase
                 sprintf('Schema enum for category "%s" diverges from BuiltInRules::CATEGORIES.', $title),
             );
         }
+    }
+
+    public function test_php_versions_match_schema_anyof_enums(): void
+    {
+        $schemaByTitle = $this->loadSchemaEnumBranches();
+
+        foreach (BuiltInRules::PHP_VERSIONS as $version => $rules) {
+            $title = 'PHP '.$version;
+            self::assertArrayHasKey($title, $schemaByTitle, sprintf('compass.schema.json is missing an anyOf branch titled "%s".', $title));
+
+            $expected = $rules;
+            $actual = $schemaByTitle[$title];
+            sort($expected);
+            sort($actual);
+            self::assertSame(
+                $expected,
+                $actual,
+                sprintf('Schema enum for PHP version "%s" diverges from BuiltInRules::PHP_VERSIONS.', $version),
+            );
+        }
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    private function loadSchemaEnumBranches(): array
+    {
+        $schemaPath = __DIR__.'/../../compass.schema.json';
+        $schema = json_decode((string) file_get_contents($schemaPath), true);
+        self::assertIsArray($schema);
+
+        /** @var list<array<string, mixed>> $anyOf */
+        $anyOf = $schema['properties']['rules']['items']['anyOf'] ?? [];
+
+        $byTitle = [];
+        foreach ($anyOf as $branch) {
+            if (! isset($branch['enum']) || ! is_array($branch['enum'])) {
+                continue;
+            }
+            $title = (string) ($branch['title'] ?? '');
+            /** @var list<string> $enum */
+            $enum = array_values($branch['enum']);
+            $byTitle[$title] = $enum;
+        }
+
+        return $byTitle;
+    }
+
+    public function test_php_versions_only_reference_rules_in_the_registry(): void
+    {
+        foreach (BuiltInRules::PHP_VERSIONS as $version => $rules) {
+            self::assertIsString($version);
+            self::assertMatchesRegularExpression(
+                '/^\d+(\.\d+){1,2}$/',
+                $version,
+                sprintf('PHP_VERSIONS key "%s" is not a recognised dotted version string.', $version),
+            );
+            self::assertNotEmpty($rules, sprintf('PHP_VERSIONS bucket "%s" is empty.', $version));
+            foreach ($rules as $rule) {
+                self::assertArrayHasKey(
+                    $rule,
+                    BuiltInRules::MAP,
+                    sprintf('PHP_VERSIONS["%s"] references "%s" which is not in MAP.', $version, $rule),
+                );
+            }
+        }
+    }
+
+    public function test_each_rule_is_introduced_in_at_most_one_php_version(): void
+    {
+        $seen = [];
+        foreach (BuiltInRules::PHP_VERSIONS as $version => $rules) {
+            foreach ($rules as $rule) {
+                self::assertArrayNotHasKey(
+                    $rule,
+                    $seen,
+                    sprintf('Rule "%s" is listed under both "%s" and "%s" in PHP_VERSIONS.', $rule, $seen[$rule] ?? '?', $version),
+                );
+                $seen[$rule] = $version;
+            }
+        }
+    }
+
+    public function test_applicable_to_aggregates_rules_up_to_the_given_php_version(): void
+    {
+        $applicable = BuiltInRules::applicableTo('8.0');
+        self::assertContains('strict-types-declaration', $applicable);
+        self::assertContains('use-array-spread', $applicable);
+        self::assertContains('named-arguments', $applicable);
+        self::assertNotContains('first-class-callable', $applicable, 'first-class-callable was introduced in 8.1');
+        self::assertNotContains('readonly-classes', $applicable, 'readonly-classes was introduced in 8.2');
+        self::assertNotContains('typed-class-constants', $applicable, 'typed-class-constants was introduced in 8.3');
+    }
+
+    public function test_applicable_to_includes_every_versioned_rule_for_the_latest_target(): void
+    {
+        $expected = [];
+        foreach (BuiltInRules::PHP_VERSIONS as $rules) {
+            foreach ($rules as $rule) {
+                $expected[] = $rule;
+            }
+        }
+        sort($expected);
+
+        $actual = BuiltInRules::applicableTo('8.3');
+        sort($actual);
+
+        self::assertSame($expected, $actual);
+    }
+
+    public function test_applicable_to_handles_patch_versions(): void
+    {
+        self::assertContains('typed-class-constants', BuiltInRules::applicableTo('8.3.0'));
+        self::assertContains('typed-class-constants', BuiltInRules::applicableTo('8.3.7'));
+    }
+
+    public function test_applicable_to_rejects_invalid_version_strings(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not a recognised dotted version string');
+        BuiltInRules::applicableTo('latest');
     }
 
     public function test_each_registered_short_name_matches_the_classs_name_method(): void

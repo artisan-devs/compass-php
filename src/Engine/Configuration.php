@@ -45,12 +45,40 @@ final readonly class Configuration
         }
 
         $rules = [];
+        $seen = [];
         foreach ((array) ($raw['rules'] ?? []) as $entry) {
             if (! is_string($entry) || $entry === '') {
                 throw new \RuntimeException('Each entry under "rules" must be a non-empty string (built-in name or PHP FQCN).');
             }
             $class = BuiltInRules::resolve($entry);
+            if (isset($seen[$class])) {
+                continue;
+            }
+            $seen[$class] = true;
             $rules[] = new $class();
+        }
+
+        if (isset($raw['phpVersion'])) {
+            if (! is_string($raw['phpVersion']) || $raw['phpVersion'] === '') {
+                throw new \RuntimeException('Compass config "phpVersion" must be a non-empty string (e.g. "8.1", "8.3.0").');
+            }
+            try {
+                $applicable = BuiltInRules::applicableTo($raw['phpVersion']);
+            } catch (\InvalidArgumentException $e) {
+                throw new \RuntimeException('Compass config "phpVersion" is invalid: '.$e->getMessage(), previous: $e);
+            }
+            foreach ($applicable as $shortName) {
+                $class = BuiltInRules::resolve($shortName);
+                if (isset($seen[$class])) {
+                    continue;
+                }
+                $seen[$class] = true;
+                $rules[] = new $class();
+            }
+        }
+
+        if ($rules === []) {
+            throw new \RuntimeException('Compass config must declare at least one rule under "rules" or set "phpVersion" to auto-include built-in rules.');
         }
 
         $baseline = null;

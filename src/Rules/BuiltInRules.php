@@ -72,6 +72,78 @@ final class BuiltInRules
     ];
 
     /**
+     * Built-in rules grouped by the PHP version that introduced the language feature each rule enforces.
+     *
+     * Orthogonal to {@see self::CATEGORIES}: a rule may appear here AND in an intent category. Only rules
+     * tied to a specific PHP version are listed; version-agnostic rules (e.g. `final-classes`,
+     * `no-else-after-return`, `no-service-location`) are intentionally absent.
+     *
+     * Use {@see self::applicableTo()} to obtain every rule a project targeting a given PHP version
+     * should already be able to pass.
+     *
+     * @var array<string, list<string>>
+     */
+    public const PHP_VERSIONS = [
+        '7.0' => [
+            'strict-types-declaration',
+        ],
+        '7.4' => [
+            'typed-declarations',
+            'use-array-spread',
+            'numeric-separator',
+        ],
+        '8.0' => [
+            'named-arguments',
+            'named-method-arguments',
+            'promoted-properties',
+            'use-str-contains',
+            'use-match-expression',
+        ],
+        '8.1' => [
+            'first-class-callable',
+            'never-return-type',
+        ],
+        '8.2' => [
+            'readonly-classes',
+        ],
+        '8.3' => [
+            'typed-class-constants',
+        ],
+    ];
+
+    /**
+     * Built-in rules whose required PHP feature is available in the given target version.
+     *
+     * Returns the union of every {@see self::PHP_VERSIONS} bucket whose key is `<= $phpVersion`,
+     * comparing with PHP's built-in `version_compare`. Order matches insertion order in
+     * {@see self::PHP_VERSIONS} so the result is deterministic.
+     *
+     * @return list<string>
+     *
+     * @throws \InvalidArgumentException When `$phpVersion` is not a recognised dotted version string.
+     */
+    public static function applicableTo(string $phpVersion): array
+    {
+        if (preg_match('/^\d+(\.\d+){1,2}$/', $phpVersion) !== 1) {
+            throw new \InvalidArgumentException(sprintf(
+                'PHP version "%s" is not a recognised dotted version string (expected e.g. "8.0", "8.1.2").',
+                $phpVersion,
+            ));
+        }
+
+        $applicable = [];
+        foreach (self::PHP_VERSIONS as $introducedIn => $rules) {
+            if (version_compare($introducedIn, $phpVersion, '<=')) {
+                foreach ($rules as $rule) {
+                    $applicable[] = $rule;
+                }
+            }
+        }
+
+        return $applicable;
+    }
+
+    /**
      * Resolve a configuration entry to a rule FQCN.
      *
      * - Strings containing a backslash are treated as fully-qualified PHP class names.

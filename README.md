@@ -24,14 +24,22 @@ paths:
 exclude:
   - src/Generated
 
+# Optional. The PHP version your project targets, in dotted form. When set,
+# every built-in rule whose feature was introduced at or before this version
+# is auto-included. Composes with the `rules` list below (deduplicated).
+# Version-agnostic rules (final-classes, no-else-after-return,
+# no-service-location) are NEVER auto-included by phpVersion — list them
+# under `rules` if you want them.
+phpVersion: "8.3"
+
 # Each entry is either a built-in rule name (matches Rule::name() of a class
 # shipped with Compass) or a fully-qualified class name of a custom rule that
 # implements Sidetours\Compass\Rules\Rule. FQCNs MUST contain a backslash so
 # the loader can disambiguate them from built-in names.
+# Optional when `phpVersion` is set; at least one of the two must be present.
 rules:
-  - named-arguments
-  - named-method-arguments
-  - promoted-properties
+  - final-classes
+  - no-else-after-return
   # - App\Compass\NoFinalKeyword
 
 # File-glob => list of rule names to suppress for matching files.
@@ -86,6 +94,52 @@ composer compass:fix-prompt -- --filter=src/Foo.php --first   # one violation + 
 - `--group-by=file\|rule` (text + json) or `none` (json only) — grouping in the output.
 - `--no-baseline` — ignore the configured baseline; report every violation.
 - `--config=PATH` — alternate config file.
+
+## PHP version targeting
+
+Set the top-level `phpVersion` key in `compass.yaml` to auto-include every built-in rule whose feature was introduced at or before your project's PHP target — instead of listing them one by one:
+
+```yaml
+paths:
+  - src
+phpVersion: "8.3"   # includes every rule from PHP 7.0 → 8.3
+rules:              # optional when phpVersion is set; the two compose
+  - final-classes   # version-agnostic rules must still be listed explicitly
+  - no-else-after-return
+  - no-service-location
+```
+
+`phpVersion` accepts any dotted version string (e.g. `"7.4"`, `"8.1"`, `"8.1.7"`); patch versions are compared with `version_compare`, so they work as expected.
+
+### What `phpVersion` includes
+
+| `phpVersion:` | Auto-includes |
+|---|---|
+| `"7.0"` | `strict-types-declaration` |
+| `"7.4"` | + `typed-declarations`, `use-array-spread`, `numeric-separator` |
+| `"8.0"` | + `named-arguments`, `named-method-arguments`, `promoted-properties`, `use-str-contains`, `use-match-expression` |
+| `"8.1"` | + `first-class-callable`, `never-return-type` |
+| `"8.2"` | + `readonly-classes` |
+| `"8.3"` | + `typed-class-constants` |
+
+Each row is *additive*: setting `phpVersion: "8.1"` includes everything in the rows above it. The mapping lives at `Sidetours\Compass\Rules\BuiltInRules::PHP_VERSIONS` and the helper `BuiltInRules::applicableTo($phpVersion)` returns the same list if you need it programmatically.
+
+### Composition rules
+
+- **Order**: explicit `rules:` come first (preserving your order); `phpVersion` then appends anything not already present.
+- **Dedupe**: by FQCN, so `rules: [named-arguments]` + `phpVersion: "8.0"` instantiates `NamedArgumentsRule` once.
+- **Version-agnostic rules are never auto-included**: `final-classes`, `no-else-after-return`, and `no-service-location` don't depend on a language version, so `phpVersion` deliberately leaves them out. List them under `rules:` if you want them.
+- **Schema requirement**: at least one of `phpVersion` or a non-empty `rules:` must be present. A config with neither raises a `RuntimeException` at load time.
+- **Validation**: invalid version strings (e.g. `phpVersion: "latest"`) raise a `RuntimeException` with the offending value in the message.
+
+### When to use which
+
+| Situation | Recommended config |
+|---|---|
+| You just want every built-in rule that fits your PHP target | `phpVersion: "<your-target>"` plus the three version-agnostic rules under `rules:` if you want them |
+| You want a hand-picked subset | `rules:` only — list each rule you want |
+| You want every-fits-target rules *plus* a custom rule | `phpVersion: "<target>"` and add `App\Compass\YourRule` under `rules:` |
+| You want to opt *out* of a feature for your PHP target | Use `phpVersion:` for the easy auto-include, then add inline `// @compass-ignore <rule>` or glob-based `ignore:` entries — `phpVersion` is additive, so you can't subtract from it |
 
 ## Inline suppressions
 
@@ -145,6 +199,10 @@ Rules are organised into four categories (`Sidetours\Compass\Rules\BuiltInRules:
 | `no-service-location` | `app()`, `resolve()`, `App::make()`, `Container::make()` calls inside files whose path contains `/Domain/` or `/Application/`. | any |
 
 Each rule has a sidecar prompt file under `src/Rules/prompts/<rule>.md`. Custom rules registered in your project's `compass.yaml` are not subject to this taxonomy — categorise them however you like in your own docs.
+
+### Built-in rules indexed by PHP version
+
+The same built-in rules are also indexed by the PHP version that introduced the language feature each rule enforces (`Sidetours\Compass\Rules\BuiltInRules::PHP_VERSIONS`), orthogonal to the intent categories above: `named-arguments` is a `modern-php` rule *and* a PHP 8.0 rule. The grouping is what powers the [`phpVersion:` config setting](#php-version-targeting); see that section for the version → rules table and how to use it. Version-agnostic rules (`final-classes`, `no-else-after-return`, `no-service-location`) are intentionally not part of this index.
 
 ## Adding a rule
 

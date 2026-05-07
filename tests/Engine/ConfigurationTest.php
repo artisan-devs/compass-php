@@ -6,8 +6,14 @@ namespace Sidetours\Compass\Tests\Engine;
 
 use PHPUnit\Framework\TestCase;
 use Sidetours\Compass\Engine\Configuration;
+use Sidetours\Compass\Rules\BuiltInRules;
 use Sidetours\Compass\Rules\NamedArgumentsRule;
 use Sidetours\Compass\Rules\PromotedPropertiesRule;
+use Sidetours\Compass\Rules\Rule;
+use Sidetours\Compass\Rules\StrictTypesDeclarationRule;
+use Sidetours\Compass\Rules\TypedDeclarationsRule;
+use Sidetours\Compass\Rules\UseArraySpreadRule;
+use Sidetours\Compass\Rules\UseStrContainsRule;
 
 final class ConfigurationTest extends TestCase
 {
@@ -91,6 +97,114 @@ YAML);
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Compass config file not found');
         Configuration::load($dir.'/compass.yaml', $dir);
+    }
+
+    public function test_php_version_auto_includes_rules_up_to_target(): void
+    {
+        $dir = self::scratchDir();
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths: [src]
+phpVersion: "8.0"
+YAML);
+
+        $config = Configuration::load($dir.'/compass.yaml', $dir);
+
+        $classes = array_map(static fn (Rule $r): string => $r::class, $config->rules);
+
+        self::assertContains(StrictTypesDeclarationRule::class, $classes, 'PHP 7.0 rule should be included for target 8.0');
+        self::assertContains(TypedDeclarationsRule::class, $classes, 'PHP 7.4 rule should be included for target 8.0');
+        self::assertContains(UseArraySpreadRule::class, $classes, 'PHP 7.4 rule should be included for target 8.0');
+        self::assertContains(NamedArgumentsRule::class, $classes, 'PHP 8.0 rule should be included for target 8.0');
+        self::assertContains(UseStrContainsRule::class, $classes, 'PHP 8.0 rule should be included for target 8.0');
+
+        // 8.1+ rules should NOT be included.
+        self::assertSame(
+            BuiltInRules::applicableTo('8.0'),
+            array_map(static fn (Rule $r): string => $r->name(), $config->rules),
+        );
+    }
+
+    public function test_php_version_composes_with_explicit_rules_and_dedupes(): void
+    {
+        $dir = self::scratchDir();
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths: [src]
+phpVersion: "8.0"
+rules:
+  - final-classes
+  - named-arguments
+YAML);
+
+        $config = Configuration::load($dir.'/compass.yaml', $dir);
+
+        $names = array_map(static fn (Rule $r): string => $r->name(), $config->rules);
+
+        // First two are the explicitly listed rules (preserving order).
+        self::assertSame('final-classes', $names[0]);
+        self::assertSame('named-arguments', $names[1]);
+
+        // named-arguments appears exactly once even though phpVersion would also include it.
+        self::assertSame(
+            1,
+            count(array_filter($names, static fn (string $n): bool => $n === 'named-arguments')),
+        );
+
+        // final-classes is only present because it was listed explicitly (phpVersion never auto-includes version-agnostic rules).
+        self::assertContains('final-classes', $names);
+    }
+
+    public function test_php_version_invalid_format_raises_runtime_exception(): void
+    {
+        $dir = self::scratchDir();
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths: [src]
+phpVersion: "latest"
+YAML);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('not a recognised dotted version string');
+        Configuration::load($dir.'/compass.yaml', $dir);
+    }
+
+    public function test_php_version_must_be_a_non_empty_string(): void
+    {
+        $dir = self::scratchDir();
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths: [src]
+phpVersion: ""
+YAML);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('phpVersion');
+        Configuration::load($dir.'/compass.yaml', $dir);
+    }
+
+    public function test_config_with_no_rules_and_no_php_version_raises_runtime_exception(): void
+    {
+        $dir = self::scratchDir();
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths: [src]
+YAML);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('at least one rule');
+        Configuration::load($dir.'/compass.yaml', $dir);
+    }
+
+    public function test_explicit_duplicate_rules_are_deduped(): void
+    {
+        $dir = self::scratchDir();
+        file_put_contents($dir.'/compass.yaml', <<<'YAML'
+paths: [src]
+rules:
+  - named-arguments
+  - "Sidetours\\Compass\\Rules\\NamedArgumentsRule"
+YAML);
+
+        $config = Configuration::load($dir.'/compass.yaml', $dir);
+
+        self::assertCount(1, $config->rules);
+        self::assertInstanceOf(NamedArgumentsRule::class, $config->rules[0]);
     }
 
     public function test_ignore_section_passes_through(): void
