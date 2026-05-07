@@ -29,6 +29,26 @@
   --container: 1200px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", "Roboto Mono", monospace;
+  /* Syntax-highlight token colours (PHP source views) */
+  --tok-comment: #6a737d;
+  --tok-keyword: #cf222e;
+  --tok-string: #0a3069;
+  --tok-number: #0550ae;
+  --tok-var: #6639ba;
+  --tok-name: var(--text);
+  --tok-tag: #116329;
+  /* Source-view violation indicators. Default to the page-level danger palette
+     so the file page looks consistent with the rest of the page. Dark code
+     themes override only this set so violation gutters / annotation rows
+     read against the dark code background regardless of page light/dark mode. */
+  --code-danger: var(--danger);
+  --code-danger-strong: var(--danger-strong);
+  --code-danger-bg: var(--danger-bg);
+  --code-danger-line: var(--danger-line);
+  --code-danger-gutter: var(--danger-gutter);
+  --code-danger-tag-bg: var(--surface);
+  --code-danger-tag-bg-hover: var(--surface-soft);
+  --code-danger-msg: var(--text);
   color-scheme: light;
 }
 
@@ -57,6 +77,12 @@
     --code-line-hover: #181a21;
     --gutter: #494d56;
     --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --tok-comment: #8a8d93;
+    --tok-keyword: #ff7b72;
+    --tok-string: #a5d6ff;
+    --tok-number: #79c0ff;
+    --tok-var: #d2a8ff;
+    --tok-tag: #7ee787;
     color-scheme: dark;
   }
 }
@@ -85,6 +111,12 @@
   --code-line-hover: #181a21;
   --gutter: #494d56;
   --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --tok-comment: #8a8d93;
+  --tok-keyword: #ff7b72;
+  --tok-string: #a5d6ff;
+  --tok-number: #79c0ff;
+  --tok-var: #d2a8ff;
+  --tok-tag: #7ee787;
   color-scheme: dark;
 }
 
@@ -212,6 +244,9 @@ code, pre { font-family: var(--font-mono); }
 .breadcrumb a:hover { color: var(--text); }
 .breadcrumb__sep { color: var(--text-faint); }
 .breadcrumb__current { color: var(--text); font-weight: 500; }
+/* Leaf breadcrumb item is always the page identifier (rule name, file name) — render in mono.
+   Middle non-clickable spans like "Rules" / "Files" stay sans. */
+.breadcrumb > .breadcrumb__current:last-child { font-family: var(--font-mono); }
 
 .page-header { margin-bottom: 22px; }
 .page-header__eyebrow {
@@ -223,8 +258,9 @@ code, pre { font-family: var(--font-mono); }
   margin: 0 0 8px;
 }
 .page-header h2 {
-  font-size: 28px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  letter-spacing: -0.01em;
   font-weight: 600;
   margin: 0 0 6px;
   line-height: 1.2;
@@ -319,6 +355,172 @@ code, pre { font-family: var(--font-mono); }
   color: var(--text-muted);
   font-size: 14px;
 }
+
+/* Tabbed card header (e.g. By rule / By file on the index page) */
+.card__header--tabs {
+  padding: 0 20px;
+  align-items: stretch;
+  gap: 0;
+}
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  align-self: stretch;
+}
+.tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding: 16px 14px;
+  margin-bottom: -1px; /* overlap the .card__header bottom border */
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+.tab:focus-visible { outline: 2px solid var(--link); outline-offset: -4px; border-radius: 4px; }
+.tab__count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+.tab[aria-selected="true"] .tab__count {
+  background: var(--surface-sunken);
+  color: var(--text);
+}
+.tab-panel { display: block; }
+.tab-panel[hidden] { display: none; }
+.tab-panel__filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.tab-panel__filter .filter { flex: 1; min-width: 0; }
+.filter-toggle {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.filter-toggle:hover { color: var(--text); background: var(--surface-soft); }
+.filter-toggle:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.filter-toggle[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--accent-fg);
+  border-color: var(--text);
+}
+.tab-panel__placeholder {
+  padding: 24px 20px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Multi-check category filter that sits above the tab panels and applies
+   to both the rules and files tables. State is global (one chip per category)
+   and persists in localStorage between page loads. */
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.category-filter__label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-right: 4px;
+}
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+.category-chip:hover { background: var(--surface-soft); }
+.category-chip input[type="checkbox"] {
+  /* Custom checkbox so the chip looks consistent across browsers */
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  margin: 0;
+  position: relative;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.category-chip input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.category-chip input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 7px;
+  border: solid var(--accent-fg);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.category-chip input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+.category-chip--off {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-soft);
+  opacity: 0.7;
+}
+.category-chip--off:hover { opacity: 1; background: var(--surface-soft); }
 
 /* Filter input */
 .filter {
@@ -504,46 +706,55 @@ code, pre { font-family: var(--font-mono); }
 .source tr.line:target .code,
 .source tr.line:hover .code { background: var(--code-line-hover); }
 .source tr.line.line--violation .ln {
-  color: var(--danger);
+  color: var(--code-danger);
   font-weight: 600;
-  border-right-color: var(--danger-gutter);
-  background: var(--danger-bg);
+  border-right-color: var(--code-danger-gutter);
+  background: var(--code-danger-bg);
 }
 .source tr.line.line--violation .code {
-  background: var(--danger-bg);
+  background: var(--code-danger-bg);
 }
 .source tr.annotation .code {
   padding: 6px 18px 10px 14px;
-  background: var(--danger-bg);
-  border-bottom: 1px solid var(--danger-line);
+  background: var(--code-danger-bg);
+  border-bottom: 1px solid var(--code-danger-line);
 }
 .source tr.annotation .ln {
-  background: var(--danger-bg);
-  border-right-color: var(--danger-gutter);
+  background: var(--code-danger-bg);
+  border-right-color: var(--code-danger-gutter);
 }
-.annotation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.annotation-list li {
+.annotation-list {
+  /* 2-column grid so multiple violations on the same line keep their pills + messages
+     vertically aligned — the first column auto-sizes to the widest rule-tag, the
+     second column fills the remaining width. Each <li> is display:contents so its
+     two children (rule-tag + msg) participate as direct grid items. */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-items: baseline;
   font-family: var(--font-sans);
   font-size: 12.5px;
-  color: var(--danger-strong);
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
+  color: var(--code-danger-strong);
 }
+.annotation-list li { display: contents; }
 .annotation-list .rule-tag {
   font-family: var(--font-mono);
   font-size: 11.5px;
   text-transform: lowercase;
-  background: var(--surface);
-  color: var(--danger-strong);
-  border: 1px solid var(--danger-line);
+  background: var(--code-danger-tag-bg);
+  color: var(--code-danger-strong);
+  border: 1px solid var(--code-danger-line);
   padding: 1px 7px;
   border-radius: 999px;
   font-weight: 500;
   white-space: nowrap;
 }
-.annotation-list .rule-tag:hover { text-decoration: none; background: var(--surface-soft); }
-.annotation-list .msg { color: var(--text); }
+.annotation-list .rule-tag:hover { text-decoration: none; background: var(--code-danger-tag-bg-hover); }
+.annotation-list .msg { color: var(--code-danger-msg); }
 
 /* Footer */
 .footer {
@@ -583,3 +794,237 @@ code, pre { font-family: var(--font-mono); }
   font-weight: 600;
 }
 .empty__subtitle { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+/* Fix recipe card on the per-rule page */
+.prompt-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--surface-soft);
+  color: var(--text-muted);
+  border: 1px solid var(--border-soft);
+}
+.badge code {
+  background: transparent;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text);
+}
+.badge--ok { background: rgba(7, 135, 90, 0.12); color: var(--ok); border-color: transparent; }
+.badge--risk-low { background: rgba(7, 135, 90, 0.12); color: var(--ok); border-color: transparent; }
+.badge--risk-medium { background: rgba(180, 83, 9, 0.14); color: var(--warn); border-color: transparent; }
+.badge--risk-high { background: var(--danger-bg); color: var(--danger-strong); border-color: transparent; }
+.prompt-body {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  max-height: 70vh;
+  overflow: auto;
+  color: var(--text);
+}
+.copy-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.copy-btn:hover { background: var(--surface-soft); }
+.copy-btn:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.copy-btn--success {
+  background: rgba(7, 135, 90, 0.12);
+  color: var(--ok);
+  border-color: transparent;
+}
+.copy-btn--error {
+  background: var(--danger-bg);
+  color: var(--danger-strong);
+  border-color: transparent;
+}
+
+/* PHP source syntax highlighting (token_get_all driven) */
+.tok-comment { color: var(--tok-comment); font-style: italic; }
+.tok-keyword { color: var(--tok-keyword); font-weight: 500; }
+.tok-string  { color: var(--tok-string); }
+.tok-number  { color: var(--tok-number); }
+.tok-var     { color: var(--tok-var); }
+.tok-name    { color: var(--tok-name); }
+.tok-tag     { color: var(--tok-tag); font-weight: 500; }
+.tok-punct   { color: var(--tok-punct, var(--text-muted)); }
+
+/* Code-theme palettes — selected via the topbar dropdown (independent of dark/light mode).
+   Each block overrides --tok-* (and optionally --code-bg, --code-line-hover) so the
+   source-code panel looks canonical for that theme regardless of the surrounding page. */
+:root.highlight-github-light {
+  --tok-comment: #6a737d;
+  --tok-keyword: #d73a49;
+  --tok-string: #032f62;
+  --tok-number: #005cc5;
+  --tok-var: #e36209;
+  --tok-name: #24292e;
+  --tok-tag: #22863a;
+  --tok-punct: #24292e;
+  --code-bg: #f6f8fa;
+  --code-line-hover: #eef0f3;
+}
+:root.highlight-monokai {
+  --tok-comment: #75715e;
+  --tok-keyword: #f92672;
+  --tok-string: #e6db74;
+  --tok-number: #ae81ff;
+  --tok-var: #66d9ef;
+  --tok-name: #f8f8f2;
+  --tok-tag: #66d9ef;
+  --tok-punct: #f8f8f2;
+  --code-bg: #272822;
+  --code-line-hover: #2d2e27;
+  /* Code-scoped danger palette — matches dark-mode values so violation rows
+     read against the dark code background. Page-level --danger-* is left alone
+     so .pill--danger / .stat--danger / .errors elsewhere on the page keep the
+     page's own light/dark mode appearance. */
+  --code-danger: #ef6a63;
+  --code-danger-strong: #f08e88;
+  --code-danger-bg: #2a1716;
+  --code-danger-line: #3a1d1c;
+  --code-danger-gutter: #6e2e2a;
+  --code-danger-tag-bg: #14161c;
+  --code-danger-tag-bg-hover: #1a1d24;
+  --code-danger-msg: #ecedf0;
+}
+:root.highlight-monokai-dimmed {
+  /* Canonical VS Code Monokai Dimmed (microsoft/vscode/extensions/theme-monokai-dimmed) */
+  --tok-comment: #9a9b99;
+  --tok-keyword: #9872a2;
+  --tok-string: #9aa83a;
+  --tok-number: #6089b4;
+  --tok-var: #6089b4;
+  --tok-name: #cf6a4c;
+  --tok-tag: #9872a2;
+  --tok-punct: #d3d0c8;
+  --code-bg: #1e1e1e;
+  --code-line-hover: #2a2a2a;
+  --code-danger: #ef6a63;
+  --code-danger-strong: #f08e88;
+  --code-danger-bg: #2a1716;
+  --code-danger-line: #3a1d1c;
+  --code-danger-gutter: #6e2e2a;
+  --code-danger-tag-bg: #14161c;
+  --code-danger-tag-bg-hover: #1a1d24;
+  --code-danger-msg: #ecedf0;
+}
+:root.highlight-dracula {
+  --tok-comment: #6272a4;
+  --tok-keyword: #ff79c6;
+  --tok-string: #f1fa8c;
+  --tok-number: #bd93f9;
+  --tok-var: #50fa7b;
+  --tok-name: #f8f8f2;
+  --tok-tag: #ff79c6;
+  --tok-punct: #f8f8f2;
+  --code-bg: #282a36;
+  --code-line-hover: #2f3140;
+  --code-danger: #ef6a63;
+  --code-danger-strong: #f08e88;
+  --code-danger-bg: #2a1716;
+  --code-danger-line: #3a1d1c;
+  --code-danger-gutter: #6e2e2a;
+  --code-danger-tag-bg: #14161c;
+  --code-danger-tag-bg-hover: #1a1d24;
+  --code-danger-msg: #ecedf0;
+}
+:root.highlight-solarized-light {
+  --tok-comment: #93a1a1;
+  --tok-keyword: #859900;
+  --tok-string: #2aa198;
+  --tok-number: #d33682;
+  --tok-var: #cb4b16;
+  --tok-name: #586e75;
+  --tok-tag: #268bd2;
+  --tok-punct: #657b83;
+  --code-bg: #fdf6e3;
+  --code-line-hover: #f5edd2;
+}
+:root.highlight-nord {
+  --tok-comment: #616e88;
+  --tok-keyword: #81a1c1;
+  --tok-string: #a3be8c;
+  --tok-number: #b48ead;
+  --tok-var: #88c0d0;
+  --tok-name: #d8dee9;
+  --tok-tag: #5e81ac;
+  --tok-punct: #d8dee9;
+  --code-bg: #2e3440;
+  --code-line-hover: #353c4a;
+  --code-danger: #ef6a63;
+  --code-danger-strong: #f08e88;
+  --code-danger-bg: #2a1716;
+  --code-danger-line: #3a1d1c;
+  --code-danger-gutter: #6e2e2a;
+  --code-danger-tag-bg: #14161c;
+  --code-danger-tag-bg-hover: #1a1d24;
+  --code-danger-msg: #ecedf0;
+}
+
+/* Compact pill-style <select> in the topbar matching the icon-btn aesthetic */
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px 0 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.control:hover { background: var(--surface-soft); color: var(--text); border-color: var(--border-soft); }
+.control:focus-within { outline: 2px solid var(--link); outline-offset: 2px; }
+.control__icon { width: 14px; height: 14px; flex: 0 0 auto; }
+.control--select select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  padding: 0 14px 0 0;
+  cursor: pointer;
+  /* Tiny chevron drawn as a background image so we don't need a second SVG */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(-45deg, transparent 50%, currentColor 50%);
+  background-position: right 4px top 12px, right 0 top 12px;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.control--select select:focus { outline: none; }
+.control--select select option {
+  background: var(--surface);
+  color: var(--text);
+}

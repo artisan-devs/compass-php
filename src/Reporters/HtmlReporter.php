@@ -6,8 +6,10 @@ namespace Sidetours\Compass\Reporters;
 
 use Sidetours\Compass\Engine\Result;
 use Sidetours\Compass\Engine\Violation;
+use Sidetours\Compass\Rules\BuiltInRules;
 use Sidetours\Compass\Rules\Rule;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Yaml\Yaml;
 
 final class HtmlReporter implements Reporter
 {
@@ -103,8 +105,7 @@ final class HtmlReporter implements Reporter
         if ($totalViolations === 0 && $errors === 0) {
             $body = $this->renderEmptyState($result);
         } else {
-            $body = $this->renderRulesCard($byRule, $rulesByName)
-                .$this->renderFilesCard($byFile);
+            $body = $this->renderViolationsCard($byRule, $byFile, $rulesByName);
         }
 
         $generatedAt = (new \DateTimeImmutable('now'))->format('Y-m-d H:i:s');
@@ -129,14 +130,137 @@ final class HtmlReporter implements Reporter
     }
 
     /**
+     * Combined "By rule" / "By file" card with tabs in the header. The two views were
+     * previously two separate cards stacked vertically; the tabbed form removes the
+     * scroll cost of switching between them and preserves separate filter inputs per view.
+     *
      * @param array<string, list<Violation>> $byRule
+     * @param array<string, list<Violation>> $byFile
      * @param array<string, Rule>            $rulesByName
      */
-    private function renderRulesCard(array $byRule, array $rulesByName): string
+    private function renderViolationsCard(array $byRule, array $byFile, array $rulesByName): string
+    {
+        $categoryByRule = $this->buildCategoryByRule($rulesByName);
+        $rules = $this->renderRulesPanel($byRule, $rulesByName, $categoryByRule);
+        $files = $this->renderFilesPanel($byFile, $categoryByRule);
+
+        if ($rules === null && $files === null) {
+            return '';
+        }
+
+        $categoryFilter = $this->renderCategoryFilter($rulesByName, $categoryByRule);
+
+        return sprintf(
+            '<section class="card">'
+            .'<header class="card__header card__header--tabs">'
+            .'<div class="tabs" role="tablist" aria-label="Violations grouping">'
+            .'<button class="tab" role="tab" id="tab-rules" data-tab-trigger="rules" aria-controls="panel-rules" aria-selected="true" type="button">By rule <span class="tab__count">%d</span></button>'
+            .'<button class="tab" role="tab" id="tab-files" data-tab-trigger="files" aria-controls="panel-files" aria-selected="false" tabindex="-1" type="button">By file <span class="tab__count">%d</span></button>'
+            .'</div>'
+            .'</header>'
+            .'<div class="card__body">'
+            .'%s'
+            .'<section class="tab-panel" id="panel-rules" role="tabpanel" aria-labelledby="tab-rules" data-tab-panel="rules">%s</section>'
+            .'<section class="tab-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" data-tab-panel="files" hidden>%s</section>'
+            .'</div>'
+            .'</section>',
+            $rules['count'] ?? 0,
+            $files['count'] ?? 0,
+            $categoryFilter,
+            $rules['html'] ?? $this->renderTabPlaceholder('No rules configured.'),
+            $files['html'] ?? $this->renderTabPlaceholder('No files affected.'),
+        );
+    }
+
+    /**
+     * Build a map of rule short-name => category short-name. Built-in rules look up
+     * their category in {@see BuiltInRules::CATEGORIES}; everything else (custom
+     * host-project rules) lands in a synthetic "custom" bucket so the chip filter
+     * can still hide/show it.
+     *
+     * @param array<string, Rule> $rulesByName
+     * @return array<string, string>
+     */
+    private function buildCategoryByRule(array $rulesByName): array
+    {
+        $reverse = [];
+        foreach (BuiltInRules::CATEGORIES as $category => $names) {
+            foreach ($names as $name) {
+                $reverse[$name] = $category;
+            }
+        }
+
+        $out = [];
+        foreach (array_keys($rulesByName) as $name) {
+            $out[$name] = $reverse[$name] ?? self::CUSTOM_CATEGORY;
+        }
+
+        return $out;
+    }
+
+    private const CUSTOM_CATEGORY = 'custom';
+
+    /**
+     * Render the multi-check category chip row that sits above the tab panels.
+     * Only categories that have at least one configured rule appear.
+     *
+     * @param array<string, Rule>  $rulesByName
+     * @param array<string, string> $categoryByRule
+     */
+    private function renderCategoryFilter(array $rulesByName, array $categoryByRule): string
+    {
+        // Preserve CATEGORIES insertion order (type-safety, modern-php, code-hygiene, architecture)
+        // and append "custom" if any custom rule is configured.
+        $present = [];
+        foreach (BuiltInRules::CATEGORIES as $category => $_names) {
+            $present[$category] = false;
+        }
+        $present[self::CUSTOM_CATEGORY] = false;
+        foreach ($categoryByRule as $cat) {
+            $present[$cat] = true;
+        }
+
+        $chips = '';
+        foreach ($present as $category => $hasRules) {
+            if (! $hasRules) {
+                continue;
+            }
+            $chips .= sprintf(
+                '<label class="category-chip" data-category-chip="%s">'
+                .'<input type="checkbox" data-category-filter="%s" checked>'
+                .'<span class="category-chip__label">%s</span>'
+                .'</label>',
+                $this->escape($category),
+                $this->escape($category),
+                $this->escape($category),
+            );
+        }
+
+        if ($chips === '') {
+            return '';
+        }
+
+        return '<div class="category-filter" role="group" aria-label="Filter by rule category">'
+            .'<span class="category-filter__label">Categories</span>'
+            .$chips
+            .'</div>';
+    }
+
+    /**
+     * Build the inner contents of the "By rule" tab: a search filter plus a table.
+     * Returns null when there's nothing to show, otherwise an array with a `count`
+     * (entries shown) and the rendered HTML for the panel body.
+     *
+     * @param array<string, list<Violation>> $byRule
+     * @param array<string, Rule>            $rulesByName
+     * @param array<string, string>          $categoryByRule
+     * @return array{count:int,html:string}|null
+     */
+    private function renderRulesPanel(array $byRule, array $rulesByName, array $categoryByRule): ?array
     {
         $allRules = array_unique(array_merge(array_keys($byRule), array_keys($rulesByName)));
         if ($allRules === []) {
-            return '';
+            return null;
         }
 
         usort($allRules, static function (string $a, string $b) use ($byRule): int {
@@ -151,10 +275,13 @@ final class HtmlReporter implements Reporter
             $rule = $rulesByName[$name] ?? null;
             $description = $rule?->shortDescription() ?? '';
             $pillClass = $count > 0 ? 'pill pill--danger' : 'pill pill--ok';
+            $category = $categoryByRule[$name] ?? self::CUSTOM_CATEGORY;
             $rows .= sprintf(
-                '<tr><td class="data-table__name"><a href="rules/%s.html">%s</a></td>'
+                '<tr data-category="%s" data-violations="%d"><td class="data-table__name"><a href="rules/%s.html">%s</a></td>'
                 .'<td class="data-table__desc">%s</td>'
                 .'<td class="num"><span class="%s">%d</span></td></tr>',
+                $this->escape($category),
+                $count,
                 $this->escape($this->ruleSlug($name)),
                 $this->escape($name),
                 $this->escape($description),
@@ -163,40 +290,48 @@ final class HtmlReporter implements Reporter
             );
         }
 
-        return sprintf(
-            '<section class="card">'
-            .'<header class="card__header">'
-            .'<h3 class="card__title">By rule <span class="card__count">%d</span></h3>'
+        $html = '<div class="tab-panel__filter">'
             .'<input type="search" class="filter" data-filter-target="#rules-table" placeholder="Filter rules…">'
-            .'</header>'
-            .'<div class="card__body">'
+            .'<button type="button" class="filter-toggle" data-hide-empty aria-pressed="false" title="Hide rules with zero violations">Hide empty</button>'
+            .'</div>'
             .'<table id="rules-table" class="data-table">'
             .'<thead><tr><th>Rule</th><th>Description</th><th class="num">Violations</th></tr></thead>'
-            .'<tbody>%s</tbody>'
-            .'</table>'
-            .'</div>'
-            .'</section>',
-            count($allRules),
-            $rows,
-        );
+            .'<tbody>'.$rows.'</tbody>'
+            .'</table>';
+
+        return ['count' => count($allRules), 'html' => $html];
     }
 
     /**
+     * Build the inner contents of the "By file" tab: a search filter plus a table.
+     * Each row carries `data-categories` (a space-separated list) for category-chip
+     * filtering — a file may span multiple rule categories.
+     *
      * @param array<string, list<Violation>> $byFile
+     * @param array<string, string>          $categoryByRule
+     * @return array{count:int,html:string}|null
      */
-    private function renderFilesCard(array $byFile): string
+    private function renderFilesPanel(array $byFile, array $categoryByRule): ?array
     {
         if ($byFile === []) {
-            return '';
+            return null;
         }
 
         $entries = [];
         foreach ($byFile as $path => $violations) {
             $rules = [];
+            $categories = [];
             foreach ($violations as $v) {
                 $rules[$v->rule] = true;
+                $cat = $categoryByRule[$v->rule] ?? self::CUSTOM_CATEGORY;
+                $categories[$cat] = true;
             }
-            $entries[] = ['path' => $path, 'count' => count($violations), 'rules' => array_keys($rules)];
+            $entries[] = [
+                'path' => $path,
+                'count' => count($violations),
+                'rules' => array_keys($rules),
+                'categories' => array_keys($categories),
+            ];
         }
         usort($entries, static fn (array $a, array $b): int => $b['count'] <=> $a['count'] ?: strcmp($a['path'], $b['path']));
 
@@ -204,11 +339,14 @@ final class HtmlReporter implements Reporter
         foreach ($entries as $entry) {
             $rules = $entry['rules'];
             sort($rules);
+            $categories = $entry['categories'];
+            sort($categories);
             $rulesText = $this->escape(implode(', ', $rules));
             $rows .= sprintf(
-                '<tr><td class="data-table__name"><a href="files/%s.html">%s</a></td>'
+                '<tr data-categories="%s"><td class="data-table__name"><a href="files/%s.html">%s</a></td>'
                 .'<td class="data-table__desc">%s</td>'
                 .'<td class="num"><span class="pill pill--danger">%d</span></td></tr>',
+                $this->escape(implode(' ', $categories)),
                 $this->escape($this->fileSlug($entry['path'])),
                 $this->escape($entry['path']),
                 $rulesText,
@@ -216,22 +354,20 @@ final class HtmlReporter implements Reporter
             );
         }
 
-        return sprintf(
-            '<section class="card">'
-            .'<header class="card__header">'
-            .'<h3 class="card__title">By file <span class="card__count">%d</span></h3>'
+        $html = '<div class="tab-panel__filter">'
             .'<input type="search" class="filter" data-filter-target="#files-table" placeholder="Filter files…">'
-            .'</header>'
-            .'<div class="card__body">'
+            .'</div>'
             .'<table id="files-table" class="data-table">'
             .'<thead><tr><th>File</th><th>Rules</th><th class="num">Violations</th></tr></thead>'
-            .'<tbody>%s</tbody>'
-            .'</table>'
-            .'</div>'
-            .'</section>',
-            count($entries),
-            $rows,
-        );
+            .'<tbody>'.$rows.'</tbody>'
+            .'</table>';
+
+        return ['count' => count($entries), 'html' => $html];
+    }
+
+    private function renderTabPlaceholder(string $message): string
+    {
+        return '<p class="tab-panel__placeholder">'.$this->escape($message).'</p>';
     }
 
     /**
@@ -316,11 +452,109 @@ final class HtmlReporter implements Reporter
             [$name, null],
         ]);
 
+        $fixRecipe = $this->renderFixPromptCard($rule);
+
         return $this->layout(
             title: $name.' · Compass',
             base: '../',
-            content: $breadcrumb.$header.$meta.$stats.$body,
+            content: $breadcrumb.$header.$meta.$stats.$body.$fixRecipe,
         );
+    }
+
+    /**
+     * Render the rule's `fixPrompt()` markdown as a "Fix recipe" card on the rule page,
+     * with frontmatter risk / auto-fixable / verification badges surfaced separately.
+     * Returns an empty string when the rule is unknown (custom rule not registered)
+     * or when the prompt file is missing / unreadable.
+     */
+    private function renderFixPromptCard(?Rule $rule): string
+    {
+        if ($rule === null) {
+            return '';
+        }
+        try {
+            $prompt = $rule->fixPrompt();
+        } catch (\Throwable) {
+            return '';
+        }
+        if ($prompt === '') {
+            return '';
+        }
+
+        [$frontmatter, $body] = $this->splitFrontmatter($prompt);
+        if ($body === '') {
+            return '';
+        }
+
+        return sprintf(
+            '<section class="card">'
+            .'<header class="card__header">'
+            .'<h3 class="card__title">Fix recipe</h3>'
+            .'<button type="button" class="copy-btn" data-copy-prompt="%s" data-copy-label="Copy prompt">Copy prompt</button>'
+            .'</header>'
+            .'<div class="card__body card__body--padded">%s<pre class="prompt-body">%s</pre></div>'
+            .'</section>',
+            $this->escape($prompt),
+            $this->renderPromptBadges($frontmatter),
+            $this->escape($body),
+        );
+    }
+
+    /**
+     * Split a YAML-frontmatter markdown document into [frontmatter, body].
+     * If the document doesn't start with a `---` fence or the fence is unbalanced,
+     * returns [[], $prompt] so the body is still rendered.
+     *
+     * @return array{0: array<string, mixed>, 1: string}
+     */
+    private function splitFrontmatter(string $prompt): array
+    {
+        if (! str_starts_with($prompt, "---\n")) {
+            return [[], $prompt];
+        }
+        $end = strpos($prompt, "\n---\n", 4);
+        if ($end === false) {
+            return [[], $prompt];
+        }
+        $yaml = substr($prompt, 4, $end - 4);
+        $body = substr($prompt, $end + 5);
+        try {
+            $parsed = Yaml::parse($yaml);
+        } catch (\Throwable) {
+            $parsed = [];
+        }
+        if (! is_array($parsed)) {
+            $parsed = [];
+        }
+
+        return [$parsed, ltrim($body, "\n")];
+    }
+
+    /**
+     * @param array<string, mixed> $frontmatter
+     */
+    private function renderPromptBadges(array $frontmatter): string
+    {
+        $badges = [];
+        if (isset($frontmatter['risk']) && is_string($frontmatter['risk'])) {
+            $risk = $frontmatter['risk'];
+            $badges[] = sprintf(
+                '<span class="badge badge--risk-%s">Risk: %s</span>',
+                $this->escape($risk),
+                $this->escape($risk),
+            );
+        }
+        if (! empty($frontmatter['auto_fixable'])) {
+            $badges[] = '<span class="badge badge--ok">Auto-fixable</span>';
+        }
+        if (isset($frontmatter['verification']) && is_string($frontmatter['verification'])) {
+            $badges[] = sprintf(
+                '<span class="badge">Verify: <code>%s</code></span>',
+                $this->escape($frontmatter['verification']),
+            );
+        }
+
+        return $badges === [] ? '' : '<div class="prompt-meta">'.implode('', $badges).'</div>';
     }
 
     /**
@@ -328,7 +562,9 @@ final class HtmlReporter implements Reporter
      */
     private function renderFilePage(string $relativePath, string $source, array $violations): string
     {
-        $lines = $source === '' ? [''] : explode("\n", str_replace(["\r\n", "\r"], "\n", $source));
+        $normalised = $source === '' ? '' : str_replace(["\r\n", "\r"], "\n", $source);
+        $lineCount = $normalised === '' ? 1 : substr_count($normalised, "\n") + 1;
+        $highlighted = $this->highlightLines($normalised, $lineCount);
 
         /** @var array<int, list<Violation>> $byLine */
         $byLine = [];
@@ -342,11 +578,11 @@ final class HtmlReporter implements Reporter
         }
 
         $rows = '';
-        foreach ($lines as $i => $text) {
+        for ($i = 0; $i < $lineCount; $i++) {
             $lineNo = $i + 1;
             $hasViolation = isset($byLine[$lineNo]);
             $rowClass = $hasViolation ? 'line line--violation' : 'line';
-            $code = $text === '' ? "\u{00a0}" : $this->escape($text);
+            $code = $highlighted[$i] === '' ? "\u{00a0}" : $highlighted[$i];
             $rows .= sprintf(
                 '<tr class="%s" id="L%d">'
                 .'<td class="ln"><a href="#L%d">%d</a></td>'
@@ -378,7 +614,7 @@ final class HtmlReporter implements Reporter
         $stats = $this->renderStats([
             ['label' => 'Violations', 'value' => count($violations), 'tone' => 'danger'],
             ['label' => 'Rules triggered', 'value' => count($rules)],
-            ['label' => 'Lines', 'value' => count($lines)],
+            ['label' => 'Lines', 'value' => $lineCount],
         ]);
 
         $sourceCard = sprintf(
@@ -411,6 +647,104 @@ final class HtmlReporter implements Reporter
     /**
      * @param list<array{label:string,value:int|string,tone?:?string,hint?:?string}> $stats
      */
+    /**
+     * Tokenise PHP source via `token_get_all` and emit one HTML-encoded line
+     * per array entry, with each token wrapped in a `tok-*` span the stylesheet
+     * can colour. Indices are 0-based; element $i corresponds to source line $i+1.
+     *
+     * @return list<string>
+     */
+    private function highlightLines(string $source, int $lineCount): array
+    {
+        $lines = array_fill(0, max($lineCount, 1), '');
+
+        if ($source === '') {
+            return $lines;
+        }
+
+        // token_get_all needs `<?php` to tokenise as PHP. If the source already opens
+        // with one, we tokenise as-is. Otherwise we prepend a synthetic `<?php\n` and
+        // discard tokens emitted from that prefix line via $skipFromLine.
+        $needsPrefix = ! preg_match('/^\s*<\?php/', $source);
+        $input = $needsPrefix ? "<?php\n".$source : $source;
+        $skipFromLine = $needsPrefix ? 2 : 1;
+
+        try {
+            $tokens = @token_get_all($input);
+        } catch (\Throwable) {
+            $tokens = [];
+        }
+
+        if ($tokens === []) {
+            foreach (explode("\n", $source) as $i => $text) {
+                $lines[$i] = $this->escape($text);
+            }
+
+            return $lines;
+        }
+
+        $cursor = 1; // Line we're currently appending to (1-based, in tokeniser input space).
+        foreach ($tokens as $token) {
+            if (is_array($token)) {
+                [$type, $text] = $token;
+                $class = $this->phpTokenClass($type);
+            } else {
+                $text = $token;
+                $class = 'tok-punct';
+            }
+
+            $parts = explode("\n", $text);
+            $partsCount = count($parts);
+            foreach ($parts as $idx => $part) {
+                $sourceLine = $cursor - $skipFromLine + 1;
+                if ($cursor >= $skipFromLine && $sourceLine <= count($lines) && $part !== '') {
+                    $escaped = $this->escape($part);
+                    $lines[$sourceLine - 1] .= $class === ''
+                        ? $escaped
+                        : '<span class="'.$class.'">'.$escaped.'</span>';
+                }
+                if ($idx < $partsCount - 1) {
+                    $cursor++;
+                }
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Map a `token_get_all` constant to a `tok-*` CSS class. Returns '' for
+     * whitespace (no wrapping span needed).
+     */
+    private function phpTokenClass(int $type): string
+    {
+        return match (true) {
+            $type === T_WHITESPACE => '',
+            $type === T_OPEN_TAG, $type === T_CLOSE_TAG, $type === T_OPEN_TAG_WITH_ECHO => 'tok-tag',
+            $type === T_COMMENT, $type === T_DOC_COMMENT => 'tok-comment',
+            $type === T_VARIABLE => 'tok-var',
+            $type === T_LNUMBER, $type === T_DNUMBER => 'tok-number',
+            $type === T_CONSTANT_ENCAPSED_STRING,
+            $type === T_ENCAPSED_AND_WHITESPACE,
+            $type === T_INLINE_HTML => 'tok-string',
+            $type === T_STRING_VARNAME, $type === T_NUM_STRING => 'tok-string',
+            $type === T_STRING => 'tok-name',
+            $type === T_NAME_FULLY_QUALIFIED, $type === T_NAME_QUALIFIED, $type === T_NAME_RELATIVE => 'tok-name',
+            default => $this->isPhpKeywordToken($type) ? 'tok-keyword' : 'tok-punct',
+        };
+    }
+
+    /**
+     * Heuristic: every T_* token whose `token_name()` doesn't end in a punctuation-y
+     * suffix is a keyword/operator we want highlighted. Cheaper than enumerating ~150 constants.
+     */
+    private function isPhpKeywordToken(int $type): bool
+    {
+        $name = token_name($type);
+
+        return $name !== 'UNKNOWN' && str_starts_with($name, 'T_');
+    }
+
     private function renderStats(array $stats): string
     {
         $cards = '';
@@ -500,15 +834,43 @@ final class HtmlReporter implements Reporter
 
     private function renderTopbar(string $base): string
     {
+        $highlightOptions = '';
+        foreach (self::HIGHLIGHT_THEMES as $value => $label) {
+            $highlightOptions .= sprintf(
+                '<option value="%s">%s</option>',
+                $this->escape($value),
+                $this->escape($label),
+            );
+        }
+
         return '<header class="topbar"><div class="topbar__inner">'
             .'<a class="brand" href="'.$this->escape($base).'index.html"><span class="brand__mark"></span>Compass</a>'
             .'<div class="nav"></div>'
+            .'<label class="control control--select" aria-label="Code theme">'
+            .'<svg class="control__icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 4 2 8 5 12"/><polyline points="11 4 14 8 11 12"/><line x1="9.5" y1="3" x2="6.5" y2="13"/></svg>'
+            .'<select data-highlight-theme>'.$highlightOptions.'</select>'
+            .'</label>'
             .'<button class="icon-btn" data-theme-toggle aria-label="Toggle theme">'
             .'<svg class="theme-icon-light" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.2 3.2l1.1 1.1M11.7 11.7l1.1 1.1M3.2 12.8l1.1-1.1M11.7 4.3l1.1-1.1"/></svg>'
             .'<svg class="theme-icon-dark" viewBox="0 0 16 16" fill="currentColor"><path d="M11.8 9.7a5 5 0 0 1-6.3-6.3 5.5 5.5 0 1 0 6.3 6.3z"/></svg>'
             .'</button>'
             .'</div></header>';
     }
+
+    /**
+     * Highlight-theme key (CSS class suffix) => display label shown in the topbar dropdown.
+     * The "default" entry intentionally maps to no class — it leaves the theme-aware
+     * `--tok-*` variables from `:root` / `:root.theme-dark` in effect.
+     */
+    private const HIGHLIGHT_THEMES = [
+        'default' => 'Default',
+        'github-light' => 'GitHub Light',
+        'monokai' => 'Monokai',
+        'monokai-dimmed' => 'Monokai Dimmed',
+        'dracula' => 'Dracula',
+        'solarized-light' => 'Solarized Light',
+        'nord' => 'Nord',
+    ];
 
     private function ensureDirectory(string $dir): void
     {
