@@ -4,7 +4,7 @@
   "type": "library",
   "description": "Architecture- and style-rule engine for PHP, with AI-ready fix prompts per rule.",
   "keywords": ["architecture", "static-analysis", "linter", "phparkitect", "named-arguments"],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "require": {
     "php": "^8.4",
     "nikic/php-parser": "^5.0",
