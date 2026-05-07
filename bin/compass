@@ -5,9 +5,16 @@ declare(strict_types=1);
 
 use Sidetours\Compass\Cli\Application;
 
+$projectRoot = getcwd();
+if ($projectRoot === false) {
+    fwrite(STDERR, "compass: unable to determine current working directory.\n");
+    exit(2);
+}
+
 $autoloadCandidates = [
-    __DIR__.'/../vendor/autoload.php',          // running compass standalone
+    $projectRoot.'/vendor/autoload.php',        // host project (preferred — sees user's autoload-dev, custom rules)
     __DIR__.'/../../../autoload.php',           // installed as a dependency (vendor/sidetours/compass/bin/compass)
+    __DIR__.'/../vendor/autoload.php',          // running compass standalone
 ];
 
 $loaded = false;
@@ -20,12 +27,6 @@ foreach ($autoloadCandidates as $candidate) {
 }
 if (! $loaded) {
     fwrite(STDERR, "compass: could not locate vendor/autoload.php. Run `composer install` in the host project.\n");
-    exit(2);
-}
-
-$projectRoot = getcwd();
-if ($projectRoot === false) {
-    fwrite(STDERR, "compass: unable to determine current working directory.\n");
     exit(2);
 }
 
