@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sidetours\Compass\Tests\Fixtures\named_method_arguments\passing;
+namespace Sidetours\Compass\Tests\Fixtures\named_arguments\passing;
 
 final class AllNamed
 {

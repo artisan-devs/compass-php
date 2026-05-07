@@ -76,7 +76,6 @@ final class PromptsCommandTest extends TestCase
 
         self::assertSame(0, $exit, $tester->getDisplay());
         self::assertFileExists($outDir.'/named-arguments.md');
-        self::assertFileExists($outDir.'/named-method-arguments.md');
         self::assertFileExists($outDir.'/constructor-property-promotion.md');
     }
 
@@ -89,7 +88,6 @@ paths:
   - src
 rules:
   - named-arguments
-  - named-method-arguments
   - constructor-property-promotion
 YAML);
 

@@ -67,7 +67,6 @@
             "description": "Built-in rules that push call and declaration sites to use PHP 8+ syntax (named arguments, constructor property promotion, str_contains, match, first-class callable syntax, array spread operator, readonly classes).",
             "enum": [
               "named-arguments",
-              "named-method-arguments",
               "constructor-property-promotion",
               "str-contains",
               "first-class-callable-syntax",
@@ -118,7 +117,6 @@
             "description": "Built-in rules that enforce features introduced in PHP 8.0 (named arguments, constructor property promotion, str_contains, match).",
             "enum": [
               "named-arguments",
-              "named-method-arguments",
               "constructor-property-promotion",
               "str-contains",
               "match-expression"
@@ -177,7 +175,7 @@
       "examples": [
         {
           "src/Legacy/**": ["*"],
-          "tests/**": ["named-method-arguments"]
+          "tests/**": ["named-arguments"]
         }
       ]
     },

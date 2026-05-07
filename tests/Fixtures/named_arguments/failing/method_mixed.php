@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Sidetours\Compass\Tests\Fixtures\named_method_arguments\failing;
+namespace Sidetours\Compass\Tests\Fixtures\named_arguments\failing;
 
 final class MixedPositional
 {

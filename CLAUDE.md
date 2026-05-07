@@ -49,7 +49,7 @@ The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) 
 
 - **`Rules/Rule`** (interface) — `name()`, `shortDescription()`, `nodeTypes(): list<class-string<Node>>`, `check(Node, Context): iterable<Violation>`, `fixPrompt(): string`. Built-in rules are grouped by intent in `Rules/BuiltInRules::CATEGORIES`:
   - **type-safety** — `strict-types-declaration`, `type-declarations`, `typed-class-constants` (8.3+), `never-return-type` (8.1+)
-  - **modern-php** — `named-arguments`, `named-method-arguments`, `constructor-property-promotion`, `str-contains` (8.0+), `first-class-callable-syntax` (8.1+), `array-spread-operator` (7.4+), `match-expression` (8.0+), `readonly-classes` (8.2+)
+  - **modern-php** — `named-arguments`, `constructor-property-promotion`, `str-contains` (8.0+), `first-class-callable-syntax` (8.1+), `array-spread-operator` (7.4+), `match-expression` (8.0+), `readonly-classes` (8.2+)
   - **code-hygiene** — `no-else-after-return`, `final-classes`, `numeric-literal-separator` (7.4+)
   - **architecture** — `no-service-location`
 

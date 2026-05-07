@@ -7,7 +7,6 @@ namespace Sidetours\Compass\Tests\Rules;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sidetours\Compass\Rules\NamedArgumentsRule;
-use Sidetours\Compass\Rules\NamedMethodArgumentsRule;
 use Sidetours\Compass\Rules\ConstructorPropertyPromotionRule;
 use Sidetours\Compass\Rules\Rule;
 
@@ -19,7 +18,6 @@ final class RuleFixPromptTest extends TestCase
     public static function ruleProvider(): iterable
     {
         yield 'named-arguments' => [new NamedArgumentsRule()];
-        yield 'named-method-arguments' => [new NamedMethodArgumentsRule()];
         yield 'constructor-property-promotion' => [new ConstructorPropertyPromotionRule()];
     }
 

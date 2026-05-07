@@ -17,7 +17,6 @@ final class BuiltInRules
      */
     public const MAP = [
         'named-arguments' => NamedArgumentsRule::class,
-        'named-method-arguments' => NamedMethodArgumentsRule::class,
         'constructor-property-promotion' => ConstructorPropertyPromotionRule::class,
         'strict-types-declaration' => StrictTypesDeclarationRule::class,
         'final-classes' => FinalClassesRule::class,
@@ -53,7 +52,6 @@ final class BuiltInRules
         ],
         'modern-php' => [
             'named-arguments',
-            'named-method-arguments',
             'constructor-property-promotion',
             'str-contains',
             'first-class-callable-syntax',
@@ -94,7 +92,6 @@ final class BuiltInRules
         ],
         '8.0' => [
             'named-arguments',
-            'named-method-arguments',
             'constructor-property-promotion',
             'str-contains',
             'match-expression',

@@ -6,11 +6,25 @@ namespace Sidetours\Compass\Rules;
 
 use PhpParser\Node;
 use PhpParser\Node\Arg;
+use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
+use PhpParser\Node\Expr\NullsafeMethodCall;
 use PhpParser\Node\Expr\StaticCall;
 use Sidetours\Compass\Engine\Context;
 use Sidetours\Compass\Engine\Violation;
 
+/**
+ * Enforces named arguments at every callsite where they're permitted:
+ * constructor invocations (`new Foo(...)`, `parent::__construct(...)`),
+ * method calls (`$x->method(...)`, `$x?->method(...)`), and static calls
+ * (`Foo::method(...)`). Plain function calls are intentionally out of scope.
+ *
+ * This rule replaces the earlier split between `named-arguments` (constructors)
+ * and `named-method-arguments` (everything else) — both enforced "no positional
+ * args at callsites" and produced redundant violations on common patterns like
+ * `$this->method(new X(...))`. Merging them into one rule keeps a single name
+ * to remember and a single fix prompt covering all four call shapes.
+ */
 final class NamedArgumentsRule implements Rule
 {
     public const NAME = 'named-arguments';
@@ -22,17 +36,12 @@ final class NamedArgumentsRule implements Rule
 
     public function shortDescription(): string
     {
-        return 'Constructor invocations must use named arguments.';
+        return 'Constructor, method, and static call invocations must use named arguments.';
     }
 
     public function fixPrompt(): string
     {
-        return self::loadPrompt(self::NAME);
-    }
-
-    private static function loadPrompt(string $name): string
-    {
-        $path = __DIR__.'/prompts/'.$name.'.md';
+        $path = __DIR__.'/prompts/'.self::NAME.'.md';
         $contents = @file_get_contents($path);
         if ($contents === false) {
             throw new \RuntimeException(sprintf('Fix prompt missing: %s', $path));
@@ -43,12 +52,13 @@ final class NamedArgumentsRule implements Rule
 
     public function nodeTypes(): array
     {
-        return [New_::class, StaticCall::class];
+        return [New_::class, MethodCall::class, NullsafeMethodCall::class, StaticCall::class];
     }
 
     public function check(Node $node, Context $context): iterable
     {
         if ($node instanceof New_) {
+            // `new class { ... }` anonymous-class literals — out of scope.
             if ($node->class instanceof Node\Stmt\Class_) {
                 return;
             }
@@ -62,12 +72,12 @@ final class NamedArgumentsRule implements Rule
             return;
         }
 
-        if ($node instanceof StaticCall && $this->isParentOrSelfConstructorCall($node)) {
+        if ($node instanceof MethodCall || $node instanceof NullsafeMethodCall || $node instanceof StaticCall) {
             yield from $this->checkArgs(
                 $node->args,
                 $node->getLine(),
                 $context,
-                $this->describeStaticCall($node),
+                $this->describeCall($node),
             );
         }
     }
@@ -98,35 +108,27 @@ final class NamedArgumentsRule implements Rule
         }
     }
 
-    private function isParentOrSelfConstructorCall(StaticCall $node): bool
-    {
-        if (! $node->name instanceof Node\Identifier || $node->name->toString() !== '__construct') {
-            return false;
-        }
-        if (! $node->class instanceof Node\Name) {
-            return false;
-        }
-        $target = $node->class->toLowerString();
-
-        return $target === 'parent' || $target === 'self' || $target === 'static';
-    }
-
     private function describeNew(New_ $node): string
     {
         if ($node->class instanceof Node\Name) {
             return 'new '.$node->class->toString().'()';
         }
-        if ($node->class instanceof Node\Stmt\Class_) {
-            return 'new (anonymous class)';
-        }
 
         return 'new (dynamic class)';
     }
 
-    private function describeStaticCall(StaticCall $node): string
+    private function describeCall(MethodCall|NullsafeMethodCall|StaticCall $node): string
     {
-        $class = $node->class instanceof Node\Name ? $node->class->toString() : '?';
+        $name = $node->name instanceof Node\Identifier ? $node->name->toString() : '{dynamic}';
 
-        return $class.'::__construct()';
+        if ($node instanceof StaticCall) {
+            $class = $node->class instanceof Node\Name ? $node->class->toString() : '{dynamic}';
+            // Show parent::__construct / self::__construct / Foo::method consistently
+            return sprintf('%s::%s()', $class, $name);
+        }
+
+        $arrow = $node instanceof NullsafeMethodCall ? '?->' : '->';
+
+        return sprintf('%s%s()', $arrow, $name);
     }
 }

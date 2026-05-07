@@ -1,6 +1,6 @@
 # Compass
 
-Compass is a small, opinionated architecture-and-style-rules engine for PHP codebases. It walks your sources with `nikic/php-parser`, runs a configurable set of AST-aware rules — including `named-arguments`, `named-method-arguments`, and `constructor-property-promotion` — and reports each drift from the agreed path. A `composer compass` invocation produces text, JSON, or GitHub-Actions output, grouped by file or by rule. Adoption is incremental: `composer compass:baseline` snapshots existing violations into a fingerprint file so new violations fail CI immediately, while pre-existing ones stay quietly tracked until you fix them. Inline `// @compass-ignore`, file-wide `@compass-ignore-file`, and glob-based suppressions in `compass.yaml` cover the cases where the rule shouldn't apply.
+Compass is a small, opinionated architecture-and-style-rules engine for PHP codebases. It walks your sources with `nikic/php-parser`, runs a configurable set of AST-aware rules — including `named-arguments`, `constructor-property-promotion`, and `match-expression` — and reports each drift from the agreed path. A `composer compass` invocation produces text, JSON, or GitHub-Actions output, grouped by file or by rule. Adoption is incremental: `composer compass:baseline` snapshots existing violations into a fingerprint file so new violations fail CI immediately, while pre-existing ones stay quietly tracked until you fix them. Inline `// @compass-ignore`, file-wide `@compass-ignore-file`, and glob-based suppressions in `compass.yaml` cover the cases where the rule shouldn't apply.
 
 What sets Compass apart from existing PHP architecture tools is that every rule ships with an AI-ready fix prompt — YAML frontmatter plus a markdown body — exposed via `composer compass:prompts`. The prompt for each rule encodes its detection algorithm, the canonical refactor recipe, the edge cases the agent must respect, and the verification command to run afterward. That turns each violation row from "something a human has to triage" into a concrete instruction packet that pairs with file-and-line metadata to drive an autonomous fix loop. The result is a rules engine that doesn't just tell you the codebase has drifted off course — it hands the next agent a turn-by-turn route back.
 
@@ -117,7 +117,7 @@ rules:              # optional when phpVersion is set; the two compose
 |---|---|
 | `"7.0"` | `strict-types-declaration` |
 | `"7.4"` | + `type-declarations`, `array-spread-operator`, `numeric-literal-separator` |
-| `"8.0"` | + `named-arguments`, `named-method-arguments`, `constructor-property-promotion`, `str-contains`, `match-expression` |
+| `"8.0"` | + `named-arguments`, `constructor-property-promotion`, `str-contains`, `match-expression` |
 | `"8.1"` | + `first-class-callable-syntax`, `never-return-type` |
 | `"8.2"` | + `readonly-classes` |
 | `"8.3"` | + `typed-class-constants` |
@@ -145,7 +145,7 @@ Each row is *additive*: setting `phpVersion: "8.1"` includes everything in the r
 
 ```php
 $x = new \DateTimeImmutable('now'); // @compass-ignore named-arguments
-// @compass-ignore-next-line named-method-arguments
+// @compass-ignore-next-line named-arguments
 $y = $clock->modify('+1 day');
 ```
 
@@ -175,8 +175,7 @@ Rules are organised into four categories (`Sidetours\Compass\Rules\BuiltInRules:
 
 | Rule | Catches | PHP |
 |---|---|---|
-| `named-arguments` | Positional args at constructor invocations (`new Foo(...)`, `parent::__construct(...)`). | 8.0+ |
-| `named-method-arguments` | Positional args at method/static calls (`$x->y()`, `Foo::bar()`). Plain function calls are out of scope. | 8.0+ |
+| `named-arguments` | Positional args at constructor invocations (`new Foo(...)`, `parent::__construct(...)`), method calls (`$x->y()`, `$x?->y()`), and static calls (`Foo::bar()`). Plain function calls are out of scope. | 8.0+ |
 | `constructor-property-promotion` | Class properties that mirror an unpromoted constructor parameter assigned via `$this->X = $X;`. | 8.0+ |
 | `str-contains` | `strpos($h, $n) !== false` comparisons that should be `str_contains` / `str_starts_with`. | 8.0+ |
 | `first-class-callable-syntax` | Array-callable (`[$obj, 'method']`) or string-callable arguments to known callable-consuming functions; suggest `$obj->method(...)`. | 8.1+ |

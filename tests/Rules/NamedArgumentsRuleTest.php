@@ -20,6 +20,7 @@ final class NamedArgumentsRuleTest extends TestCase
     {
         $base = __DIR__.'/../Fixtures/named_arguments';
 
+        // Constructor-call cases.
         yield 'passing: all named' => [$base.'/passing/all_named.php', 0];
         yield 'passing: no args' => [$base.'/passing/no_args.php', 0];
         yield 'passing: variadic spread' => [$base.'/passing/variadic.php', 0];
@@ -27,6 +28,16 @@ final class NamedArgumentsRuleTest extends TestCase
         yield 'failing: single positional' => [$base.'/failing/positional.php', 1];
         yield 'failing: parent constructor' => [$base.'/failing/parent_construct.php', 1];
         yield 'failing: mixed positional + named' => [$base.'/failing/mixed.php', 1];
+
+        // Method/static-call cases (formerly the named-method-arguments rule, now merged in).
+        yield 'passing: method calls all named' => [$base.'/passing/method_all_named.php', 0];
+        yield 'passing: method calls no args' => [$base.'/passing/method_no_args.php', 0];
+        yield 'passing: method variadic spread' => [$base.'/passing/method_variadic.php', 0];
+        yield 'passing: func calls intentionally out of scope' => [$base.'/passing/func_call_skipped.php', 0];
+        yield 'failing: method call positional' => [$base.'/failing/method_call.php', 1];
+        yield 'failing: nullsafe method call positional' => [$base.'/failing/nullsafe.php', 1];
+        yield 'failing: static call positional' => [$base.'/failing/static_call.php', 2];
+        yield 'failing: method mixed positional + named' => [$base.'/failing/method_mixed.php', 1];
     }
 
     #[DataProvider('fixtureProvider')]
