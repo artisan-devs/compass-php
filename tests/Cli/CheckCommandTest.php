@@ -100,7 +100,7 @@ paths:
   - src
 rules:
   - named-arguments
-  - promoted-properties
+  - constructor-property-promotion
 YAML);
         register_shutdown_function(static function () use ($dir): void {
             self::rrmdir($dir);
@@ -114,16 +114,16 @@ YAML);
         $display = $tester->getDisplay();
         self::assertStringContainsString('src/A.php (3)', $display);
         self::assertStringContainsString('[named-arguments] (2)', $display);
-        self::assertStringContainsString('[promoted-properties] (1)', $display);
+        self::assertStringContainsString('[constructor-property-promotion] (1)', $display);
 
         $filePos = strpos($display, 'src/A.php');
         $namedPos = strpos($display, '[named-arguments]');
-        $promotedPos = strpos($display, '[promoted-properties]');
+        $promotionPos = strpos($display, '[constructor-property-promotion]');
         self::assertIsInt($filePos);
         self::assertIsInt($namedPos);
-        self::assertIsInt($promotedPos);
-        self::assertLessThan($namedPos, $filePos, 'file header must come before its rule sub-headers');
-        self::assertLessThan($promotedPos, $namedPos, 'rule sub-headers must be alphabetically sorted');
+        self::assertIsInt($promotionPos);
+        self::assertLessThan($promotionPos, $filePos, 'file header must come before its rule sub-headers');
+        self::assertLessThan($namedPos, $promotionPos, 'rule sub-headers must be alphabetically sorted');
     }
 
     public function test_text_reporter_group_by_rule_sub_groups_by_file(): void

@@ -22,7 +22,7 @@ final class PromptsCommandTest extends TestCase
         self::assertSame(0, $exit, $tester->getDisplay());
         $output = $tester->getDisplay();
         self::assertStringContainsString('rule: named-arguments', $output);
-        self::assertStringContainsString('rule: promoted-properties', $output);
+        self::assertStringContainsString('rule: constructor-property-promotion', $output);
     }
 
     public function test_filter_by_rule_emits_only_one_prompt(): void
@@ -32,10 +32,10 @@ final class PromptsCommandTest extends TestCase
         $app->setAutoExit(false);
         $tester = new ApplicationTester($app);
 
-        $tester->run(['command' => 'prompts', '--rule' => 'promoted-properties']);
+        $tester->run(['command' => 'prompts', '--rule' => 'constructor-property-promotion']);
         $output = $tester->getDisplay();
 
-        self::assertStringContainsString('rule: promoted-properties', $output);
+        self::assertStringContainsString('rule: constructor-property-promotion', $output);
         self::assertStringNotContainsString('rule: named-arguments', $output);
     }
 
@@ -77,7 +77,7 @@ final class PromptsCommandTest extends TestCase
         self::assertSame(0, $exit, $tester->getDisplay());
         self::assertFileExists($outDir.'/named-arguments.md');
         self::assertFileExists($outDir.'/named-method-arguments.md');
-        self::assertFileExists($outDir.'/promoted-properties.md');
+        self::assertFileExists($outDir.'/constructor-property-promotion.md');
     }
 
     private static function makeProject(): string
@@ -90,7 +90,7 @@ paths:
 rules:
   - named-arguments
   - named-method-arguments
-  - promoted-properties
+  - constructor-property-promotion
 YAML);
 
         register_shutdown_function(static function () use ($dir): void {

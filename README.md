@@ -1,6 +1,6 @@
 # Compass
 
-Compass is a small, opinionated architecture-and-style-rules engine for PHP codebases. It walks your sources with `nikic/php-parser`, runs a configurable set of AST-aware rules — currently `named-arguments`, `named-method-arguments`, and `promoted-properties` — and reports each drift from the agreed path. A `composer compass` invocation produces text, JSON, or GitHub-Actions output, grouped by file or by rule. Adoption is incremental: `composer compass:baseline` snapshots existing violations into a fingerprint file so new violations fail CI immediately, while pre-existing ones stay quietly tracked until you fix them. Inline `// @compass-ignore`, file-wide `@compass-ignore-file`, and glob-based suppressions in `compass.yaml` cover the cases where the rule shouldn't apply.
+Compass is a small, opinionated architecture-and-style-rules engine for PHP codebases. It walks your sources with `nikic/php-parser`, runs a configurable set of AST-aware rules — including `named-arguments`, `named-method-arguments`, and `constructor-property-promotion` — and reports each drift from the agreed path. A `composer compass` invocation produces text, JSON, or GitHub-Actions output, grouped by file or by rule. Adoption is incremental: `composer compass:baseline` snapshots existing violations into a fingerprint file so new violations fail CI immediately, while pre-existing ones stay quietly tracked until you fix them. Inline `// @compass-ignore`, file-wide `@compass-ignore-file`, and glob-based suppressions in `compass.yaml` cover the cases where the rule shouldn't apply.
 
 What sets Compass apart from existing PHP architecture tools is that every rule ships with an AI-ready fix prompt — YAML frontmatter plus a markdown body — exposed via `composer compass:prompts`. The prompt for each rule encodes its detection algorithm, the canonical refactor recipe, the edge cases the agent must respect, and the verification command to run afterward. That turns each violation row from "something a human has to triage" into a concrete instruction packet that pairs with file-and-line metadata to drive an autonomous fix loop. The result is a rules engine that doesn't just tell you the codebase has drifted off course — it hands the next agent a turn-by-turn route back.
 
@@ -116,9 +116,9 @@ rules:              # optional when phpVersion is set; the two compose
 | `phpVersion:` | Auto-includes |
 |---|---|
 | `"7.0"` | `strict-types-declaration` |
-| `"7.4"` | + `typed-declarations`, `use-array-spread`, `numeric-separator` |
-| `"8.0"` | + `named-arguments`, `named-method-arguments`, `promoted-properties`, `use-str-contains`, `use-match-expression` |
-| `"8.1"` | + `first-class-callable`, `never-return-type` |
+| `"7.4"` | + `type-declarations`, `array-spread-operator`, `numeric-literal-separator` |
+| `"8.0"` | + `named-arguments`, `named-method-arguments`, `constructor-property-promotion`, `str-contains`, `match-expression` |
+| `"8.1"` | + `first-class-callable-syntax`, `never-return-type` |
 | `"8.2"` | + `readonly-classes` |
 | `"8.3"` | + `typed-class-constants` |
 
@@ -167,7 +167,7 @@ Rules are organised into four categories (`Sidetours\Compass\Rules\BuiltInRules:
 | Rule | Catches | PHP |
 |---|---|---|
 | `strict-types-declaration` | Files that don't begin with `declare(strict_types=1);` immediately after `<?php`. | 7.0+ |
-| `typed-declarations` | Properties, parameters, or return types lacking explicit native types (PHPDoc not a substitute). Skips magic `__construct`/`__destruct`. | 7.4+ |
+| `type-declarations` | Properties, parameters, or return types lacking explicit native types (PHPDoc not a substitute). Skips magic `__construct`/`__destruct`. | 7.4+ |
 | `typed-class-constants` | Class/interface/enum constants without an explicit type. | 8.3+ |
 | `never-return-type` | Functions/methods whose every code path throws or exits, but whose return type isn't `: never`. | 8.1+ |
 
@@ -177,11 +177,11 @@ Rules are organised into four categories (`Sidetours\Compass\Rules\BuiltInRules:
 |---|---|---|
 | `named-arguments` | Positional args at constructor invocations (`new Foo(...)`, `parent::__construct(...)`). | 8.0+ |
 | `named-method-arguments` | Positional args at method/static calls (`$x->y()`, `Foo::bar()`). Plain function calls are out of scope. | 8.0+ |
-| `promoted-properties` | Class properties that mirror an unpromoted constructor parameter assigned via `$this->X = $X;`. | 8.0+ |
-| `use-str-contains` | `strpos($h, $n) !== false` comparisons that should be `str_contains` / `str_starts_with`. | 8.0+ |
-| `first-class-callable` | Array-callable (`[$obj, 'method']`) or string-callable arguments to known callable-consuming functions; suggest `$obj->method(...)`. | 8.1+ |
-| `use-array-spread` | `array_merge(...)` calls with ≥2 args; suggest `[...$a, ...$b]`. | 7.4+ |
-| `use-match-expression` | `switch` statements with no fall-through where every case terminates; suggest `match`. | 8.0+ |
+| `constructor-property-promotion` | Class properties that mirror an unpromoted constructor parameter assigned via `$this->X = $X;`. | 8.0+ |
+| `str-contains` | `strpos($h, $n) !== false` comparisons that should be `str_contains` / `str_starts_with`. | 8.0+ |
+| `first-class-callable-syntax` | Array-callable (`[$obj, 'method']`) or string-callable arguments to known callable-consuming functions; suggest `$obj->method(...)`. | 8.1+ |
+| `array-spread-operator` | `array_merge(...)` calls with ≥2 args; suggest `[...$a, ...$b]`. | 7.4+ |
+| `match-expression` | `switch` statements with no fall-through where every case terminates; suggest `match`. | 8.0+ |
 | `readonly-classes` | Classes whose every property is `readonly`; suggest `readonly class`. | 8.2+ |
 
 ### Code Hygiene — readability and simplicity
@@ -190,13 +190,15 @@ Rules are organised into four categories (`Sidetours\Compass\Rules\BuiltInRules:
 |---|---|---|
 | `no-else-after-return` | `else` / `elseif` branches that follow an `if` body terminating with `return`/`throw`/`exit`/`continue`/`break`. | any |
 | `final-classes` | Concrete (non-abstract) classes without the `final` modifier. | any |
-| `numeric-separator` | Decimal numeric literals ≥ 10 000 written without underscore separators (`1500000` → `1_500_000`). | 7.4+ |
+| `numeric-literal-separator` | Decimal numeric literals ≥ 10 000 written without underscore separators (`1500000` → `1_500_000`). | 7.4+ |
 
 ### Architecture — design boundaries between layers
 
 | Rule | Catches | PHP |
 |---|---|---|
 | `no-service-location` | `app()`, `resolve()`, `App::make()`, `Container::make()` calls inside files whose path contains `/Domain/` or `/Application/`. | any |
+
+Built-in rule short names follow the underlying PHP RFC name (e.g. `constructor-property-promotion`, `match-expression`, `first-class-callable-syntax`, `numeric-literal-separator`, `str-contains`, `array-spread-operator`, `type-declarations`). Rules with no underlying RFC (`final-classes`, `no-else-after-return`, `no-service-location`) are pure code-hygiene/architecture and aren't bound by the convention.
 
 Each rule has a sidecar prompt file under `src/Rules/prompts/<rule>.md`. Custom rules registered in your project's `compass.yaml` are not subject to this taxonomy — categorise them however you like in your own docs.
 

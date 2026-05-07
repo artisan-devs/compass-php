@@ -171,9 +171,9 @@ final class BuiltInRulesTest extends TestCase
     {
         $applicable = BuiltInRules::applicableTo('8.0');
         self::assertContains('strict-types-declaration', $applicable);
-        self::assertContains('use-array-spread', $applicable);
+        self::assertContains('array-spread-operator', $applicable);
         self::assertContains('named-arguments', $applicable);
-        self::assertNotContains('first-class-callable', $applicable, 'first-class-callable was introduced in 8.1');
+        self::assertNotContains('first-class-callable-syntax', $applicable, 'first-class-callable-syntax was introduced in 8.1');
         self::assertNotContains('readonly-classes', $applicable, 'readonly-classes was introduced in 8.2');
         self::assertNotContains('typed-class-constants', $applicable, 'typed-class-constants was introduced in 8.3');
     }
@@ -230,7 +230,7 @@ final class BuiltInRulesTest extends TestCase
 
     public function test_resolve_returns_fqcn_when_entry_contains_backslash(): void
     {
-        $fqcn = \Sidetours\Compass\Rules\PromotedPropertiesRule::class;
+        $fqcn = \Sidetours\Compass\Rules\ConstructorPropertyPromotionRule::class;
         self::assertSame($fqcn, BuiltInRules::resolve($fqcn));
     }
 

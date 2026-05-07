@@ -43,13 +43,13 @@ final class FixPromptCommandTest extends TestCase
         $tester = new ApplicationTester($app);
         $exit = $tester->run([
             'command' => 'fix-prompt',
-            '--rule' => 'promoted-properties',
+            '--rule' => 'constructor-property-promotion',
             '--no-baseline' => true,
         ]);
 
         self::assertSame(0, $exit, $tester->getDisplay());
         $display = $tester->getDisplay();
-        self::assertStringContainsString('rule: promoted-properties', $display);
+        self::assertStringContainsString('rule: constructor-property-promotion', $display);
         self::assertStringNotContainsString('rule: named-arguments', $display);
     }
 
@@ -124,7 +124,7 @@ class Foo {
 }
 $a = new \DateTimeImmutable('now');
 PHP);
-        file_put_contents($dir.'/compass.yaml', "paths:\n  - src\nrules:\n  - named-arguments\n  - promoted-properties\n");
+        file_put_contents($dir.'/compass.yaml', "paths:\n  - src\nrules:\n  - named-arguments\n  - constructor-property-promotion\n");
 
         register_shutdown_function(static function () use ($dir): void {
             self::rrmdir($dir);

@@ -56,7 +56,7 @@
             "description": "Built-in rules that enforce explicit native PHP types end-to-end.",
             "enum": [
               "strict-types-declaration",
-              "typed-declarations",
+              "type-declarations",
               "typed-class-constants",
               "never-return-type"
             ]
@@ -64,26 +64,26 @@
           {
             "type": "string",
             "title": "Modern PHP",
-            "description": "Built-in rules that push call and declaration sites to use PHP 8+ syntax (named arguments, promoted properties, str_contains, match, first-class callables, array spread, readonly classes).",
+            "description": "Built-in rules that push call and declaration sites to use PHP 8+ syntax (named arguments, constructor property promotion, str_contains, match, first-class callable syntax, array spread operator, readonly classes).",
             "enum": [
               "named-arguments",
               "named-method-arguments",
-              "promoted-properties",
-              "use-str-contains",
-              "first-class-callable",
-              "use-array-spread",
-              "use-match-expression",
+              "constructor-property-promotion",
+              "str-contains",
+              "first-class-callable-syntax",
+              "array-spread-operator",
+              "match-expression",
               "readonly-classes"
             ]
           },
           {
             "type": "string",
             "title": "Code Hygiene",
-            "description": "Built-in rules that improve readability and simplicity (early returns, final classes, numeric separators).",
+            "description": "Built-in rules that improve readability and simplicity (early returns, final classes, numeric literal separators).",
             "enum": [
               "no-else-after-return",
               "final-classes",
-              "numeric-separator"
+              "numeric-literal-separator"
             ]
           },
           {
@@ -105,11 +105,11 @@
           {
             "type": "string",
             "title": "PHP 7.4",
-            "description": "Built-in rules that enforce features introduced in PHP 7.4 (typed properties, array spread, numeric literal separator).",
+            "description": "Built-in rules that enforce features introduced in PHP 7.4 (typed properties, array spread operator, numeric literal separator).",
             "enum": [
-              "typed-declarations",
-              "use-array-spread",
-              "numeric-separator"
+              "type-declarations",
+              "array-spread-operator",
+              "numeric-literal-separator"
             ]
           },
           {
@@ -119,9 +119,9 @@
             "enum": [
               "named-arguments",
               "named-method-arguments",
-              "promoted-properties",
-              "use-str-contains",
-              "use-match-expression"
+              "constructor-property-promotion",
+              "str-contains",
+              "match-expression"
             ]
           },
           {
@@ -129,7 +129,7 @@
             "title": "PHP 8.1",
             "description": "Built-in rules that enforce features introduced in PHP 8.1 (first-class callable syntax, never return type).",
             "enum": [
-              "first-class-callable",
+              "first-class-callable-syntax",
               "never-return-type"
             ]
           },

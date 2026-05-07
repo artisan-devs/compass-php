@@ -8,12 +8,12 @@ use PHPUnit\Framework\TestCase;
 use Sidetours\Compass\Engine\Configuration;
 use Sidetours\Compass\Rules\BuiltInRules;
 use Sidetours\Compass\Rules\NamedArgumentsRule;
-use Sidetours\Compass\Rules\PromotedPropertiesRule;
+use Sidetours\Compass\Rules\ConstructorPropertyPromotionRule;
 use Sidetours\Compass\Rules\Rule;
 use Sidetours\Compass\Rules\StrictTypesDeclarationRule;
-use Sidetours\Compass\Rules\TypedDeclarationsRule;
-use Sidetours\Compass\Rules\UseArraySpreadRule;
-use Sidetours\Compass\Rules\UseStrContainsRule;
+use Sidetours\Compass\Rules\TypeDeclarationsRule;
+use Sidetours\Compass\Rules\ArraySpreadOperatorRule;
+use Sidetours\Compass\Rules\StrContainsRule;
 
 final class ConfigurationTest extends TestCase
 {
@@ -25,14 +25,14 @@ paths:
   - src
 rules:
   - named-arguments
-  - promoted-properties
+  - constructor-property-promotion
 YAML);
 
         $config = Configuration::load($dir.'/compass.yaml', $dir);
 
         self::assertCount(2, $config->rules);
         self::assertInstanceOf(NamedArgumentsRule::class, $config->rules[0]);
-        self::assertInstanceOf(PromotedPropertiesRule::class, $config->rules[1]);
+        self::assertInstanceOf(ConstructorPropertyPromotionRule::class, $config->rules[1]);
         self::assertSame([$dir.'/src'], $config->paths);
         self::assertNull($config->baseline);
     }
@@ -112,10 +112,10 @@ YAML);
         $classes = array_map(static fn (Rule $r): string => $r::class, $config->rules);
 
         self::assertContains(StrictTypesDeclarationRule::class, $classes, 'PHP 7.0 rule should be included for target 8.0');
-        self::assertContains(TypedDeclarationsRule::class, $classes, 'PHP 7.4 rule should be included for target 8.0');
-        self::assertContains(UseArraySpreadRule::class, $classes, 'PHP 7.4 rule should be included for target 8.0');
+        self::assertContains(TypeDeclarationsRule::class, $classes, 'PHP 7.4 rule should be included for target 8.0');
+        self::assertContains(ArraySpreadOperatorRule::class, $classes, 'PHP 7.4 rule should be included for target 8.0');
         self::assertContains(NamedArgumentsRule::class, $classes, 'PHP 8.0 rule should be included for target 8.0');
-        self::assertContains(UseStrContainsRule::class, $classes, 'PHP 8.0 rule should be included for target 8.0');
+        self::assertContains(StrContainsRule::class, $classes, 'PHP 8.0 rule should be included for target 8.0');
 
         // 8.1+ rules should NOT be included.
         self::assertSame(

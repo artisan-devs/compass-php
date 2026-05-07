@@ -48,10 +48,12 @@ The pipeline is `Configuration → FileScanner → Runner → RuleVisitor (AST) 
 - **`Engine/FileScanner`** — recursive `.php` discovery. Excludes match against both relative and absolute paths via `fnmatch`. Plain-string excludes (no glob) are treated as directory prefixes.
 
 - **`Rules/Rule`** (interface) — `name()`, `shortDescription()`, `nodeTypes(): list<class-string<Node>>`, `check(Node, Context): iterable<Violation>`, `fixPrompt(): string`. Built-in rules are grouped by intent in `Rules/BuiltInRules::CATEGORIES`:
-  - **type-safety** — `strict-types-declaration`, `typed-declarations`, `typed-class-constants` (8.3+), `never-return-type` (8.1+)
-  - **modern-php** — `named-arguments`, `named-method-arguments`, `promoted-properties`, `use-str-contains` (8.0+), `first-class-callable` (8.1+), `use-array-spread` (7.4+), `use-match-expression` (8.0+), `readonly-classes` (8.2+)
-  - **code-hygiene** — `no-else-after-return`, `final-classes`, `numeric-separator` (7.4+)
+  - **type-safety** — `strict-types-declaration`, `type-declarations`, `typed-class-constants` (8.3+), `never-return-type` (8.1+)
+  - **modern-php** — `named-arguments`, `named-method-arguments`, `constructor-property-promotion`, `str-contains` (8.0+), `first-class-callable-syntax` (8.1+), `array-spread-operator` (7.4+), `match-expression` (8.0+), `readonly-classes` (8.2+)
+  - **code-hygiene** — `no-else-after-return`, `final-classes`, `numeric-literal-separator` (7.4+)
   - **architecture** — `no-service-location`
+
+  Built-in rule short names follow the underlying PHP RFC name (e.g. `constructor-property-promotion`, `match-expression`, `first-class-callable-syntax`, `numeric-literal-separator`, `str-contains`, `array-spread-operator`, `type-declarations`). When adding a new built-in rule, prefer the RFC title over a Compass-coined alias and avoid the `use-` prefix. Rules with no underlying RFC (`final-classes`, `no-else-after-return`, `no-service-location`) are pure code-hygiene/architecture and don't need to follow the convention.
 
   An orthogonal grouping in `Rules/BuiltInRules::PHP_VERSIONS` indexes the same rules by the PHP version that introduced the language feature each rule enforces (`7.0`, `7.4`, `8.0`, `8.1`, `8.2`, `8.3`). Version-agnostic rules (`final-classes`, `no-else-after-return`, `no-service-location`) are absent. `BuiltInRules::applicableTo($phpVersion)` returns the union of every bucket whose key is `<= $phpVersion` (via `version_compare`), so a host project on PHP 8.1 can ask for "every built-in rule whose feature my runtime already has".
 
